@@ -3,7 +3,10 @@ export const PLACEHOLDERS = {
   ROLE: "Backend Developer",
   SUPERVISOR_NAME: "MUHAMMAD MUZMI' ULYA",
   SUPERVISOR_ROLE: "Lead Backend Developer",
-  DEPARTMENT_HEAD_NAME: "Hendra Prabha"
+  DEPARTMENT_HEAD_NAME: "Hendra Prabha",
+  DEFAULT_ACTIVITIES :"Grooming / Support Integration / Support UAT",
+  DEFAULT_GLOBAL_DESCRIPTION: "Support Integration, UAT, BETA Project NBDS",
+  DEFAULT_BASELINE_HOURS : 0
 };
 
 export const TEXTS = {
@@ -11,8 +14,6 @@ export const TEXTS = {
   DISETUJUI_OLEH: "Disetujui Oleh,",
   TANDA_TANGAN: "",
   TOTAL: "TOTAL",
-  DEFAULT_ACTIVITIES: "Grooming / Support Integration / Support UAT",
-  DEFAULT_GLOBAL_DESCRIPTION: "Grooming / Support Testing Integrasi, UAT, BVT, Production",
   ROLE: "Role",
   NAME: "Name",
   SIGNATURE: "Signature",

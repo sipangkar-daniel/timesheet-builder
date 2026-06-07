@@ -74,9 +74,6 @@ export const MultiDatePicker = ({
         <h4 className="text-sm font-bold text-gray-700">
           Interactive Month Calendar
         </h4>
-        <span className="text-xs text-gray-400 font-medium">
-          Select brush below, click days to paint
-        </span>
       </div>
 
       {/* POPPING RADIO BUTTONS (Active Brush Selector) */}

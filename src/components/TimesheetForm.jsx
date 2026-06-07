@@ -88,7 +88,7 @@ export const TimesheetForm = ({
       {/* Employee & Role Information */}
       <div className="glass-panel rounded-2xl p-5 shadow-lg space-y-4">
         <h3 className="text-base font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-100 dark:border-gray-800 pb-2 flex items-center gap-2">
-          <FileText className="w-5 h-5" /> Personnel Details
+          <FileText className="w-5 h-5" /> Basic Information
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -145,6 +145,36 @@ export const TimesheetForm = ({
           </div>
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="md:col-span-4">
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+              Default Activity Description (used for first ticket only)
+            </label>
+            <textarea
+                rows={1}
+                value={defaultActivities}
+                onChange={e => setDefaultActivities(e.target.value)}
+                placeholder={PLACEHOLDERS.DEFAULT_ACTIVITIES}
+                className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none resize-none"
+            />
+          </div>
+
+          <div className="md:col-span-1">
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+              Hours
+            </label>
+            <input
+                type="number"
+                min="0"
+                max="24"
+                value={hourOfDefaultActivities}
+                onChange={e => setHourOfDefaultActivities(Number(e.target.value))}
+                placeholder={PLACEHOLDERS.DEFAULT_BASELINE_HOURS}
+                className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none"
+            />
+          </div>
+        </div>
+
         {/* CSV Import (Swapped from Bottom) */}
         <div className="pt-2 border-t border-gray-150/60 dark:border-gray-800/80 space-y-3">
           <div className="flex justify-between items-center">
@@ -180,15 +210,15 @@ export const TimesheetForm = ({
               />
               <Upload className="w-8 h-8 text-gray-400 dark:text-gray-500 mb-2" />
               <p className="text-xs text-gray-600 dark:text-gray-300 font-semibold">
-                {csvFileName || "Click or Drag JIRA CSV file here"}
+                {csvFileName || "Click or Drag CSV file here"}
               </p>
-              <p className="text-[10px] text-gray-400 mt-1">Columns needed: Issue key, Summary</p>
+              <p className="text-[10px] text-gray-400 mt-1">Make sure column in csv have: Issue key, Summary</p>
             </div>
           ) : (
             <div className="space-y-2">
               <textarea 
                 rows="4"
-                placeholder='{"ticket": [{"issueKey": "PROJ-101", "summary": "Setup login router"}]}'
+                placeholder='{"ticket": [{"issueKey": "TICKET-NUMBER", "summary": "Create Feature Login"}]}'
                 value={jsonText}
                 onChange={e => setJsonText(e.target.value)}
                 className="w-full font-mono text-xs rounded-lg p-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-mandiri-blue resize-y"
@@ -208,49 +238,24 @@ export const TimesheetForm = ({
       {/* Date & Baseline Configuration */}
       <div className="glass-panel rounded-2xl p-5 shadow-lg space-y-4">
         <h3 className="text-base font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-100 dark:border-gray-800 pb-2 flex items-center gap-2">
-          <Calendar className="w-5 h-5" /> Period & Work Rules
+          <Calendar className="w-5 h-5" /> Timesheet Date Rules
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <MonthYearPicker 
-            year={state.year}
-            month={state.month}
-            onChange={(y, m) => {
-              const newWeekends = getWeekendsInMonth(y, m);
-              setState(prev => ({
-                ...prev,
-                year: y,
-                month: m,
-                weekendDays: newWeekends,
-                holidayDays: [],
-                leaveDays: []
-              }));
-            }}
-          />
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-              Baseline Hours (per business day)
-            </label>
-            <input 
-              type="number" 
-              min="0"
-              max="24"
-              value={hourOfDefaultActivities}
-              onChange={e => setHourOfDefaultActivities(Number(e.target.value))}
-              className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-            Default Activity Description
-          </label>
-          <textarea 
-            rows="2"
-            value={defaultActivities}
-            onChange={e => setDefaultActivities(e.target.value)}
-            className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none resize-none"
+        <div className="mt-4">
+          <MonthYearPicker
+              year={state.year}
+              month={state.month}
+              onChange={(y, m) => {
+                const newWeekends = getWeekendsInMonth(y, m);
+                setState(prev => ({
+                  ...prev,
+                  year: y,
+                  month: m,
+                  weekendDays: newWeekends,
+                  holidayDays: [],
+                  leaveDays: []
+                }));
+              }}
           />
         </div>
 

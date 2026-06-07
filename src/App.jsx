@@ -7,7 +7,7 @@ import { getWeekendsInMonth, getMonthNameId, getDaysInMonth } from './utils/date
 import { exportToPdf } from './utils/pdfExporter';
 import { Calendar, FileText, Sparkles, Loader2, CheckCircle2, ChevronDown, Upload } from 'lucide-react';
 import defaultSignature from './assets/images/default-signature.png';
-import { TEXTS } from './utils/constants';
+import {PLACEHOLDERS, TEXTS} from './utils/constants';
 
 function App() {
   // Accordion open/close states
@@ -87,8 +87,8 @@ function App() {
     workedHolidayDays: []
   });
 
-  const [defaultActivities, setDefaultActivities] = useState(TEXTS.DEFAULT_ACTIVITIES);
-  const [hourOfDefaultActivities, setHourOfDefaultActivities] = useState(1);
+  const [defaultActivities, setDefaultActivities] = useState(PLACEHOLDERS.DEFAULT_ACTIVITIES);
+  const [hourOfDefaultActivities, setHourOfDefaultActivities] = useState(PLACEHOLDERS.DEFAULT_BASELINE_HOURS);
 
   const [timesheetTickets, setTimesheetTickets] = useState([]);
   const [mergedRowGroups, setMergedRowGroups] = useState([]);
@@ -107,7 +107,7 @@ function App() {
     formTitle: "SURAT KETERANGAN KERJA LEMBUR",
     formDescription: "Sehubungan dengan adanya pekerjaan yang tidak dapat ditangguhkan penyelesaiannya, maka dengan ini saya meminta kepada karyawan tersebut di bawah ini untuk melakukan kerja lembur pada hari dan waktu sebagaimana tercantum dalam daftar lembur di bawah ini:",
     isDescriptionSame: true,
-    globalDescription: TEXTS.DEFAULT_GLOBAL_DESCRIPTION,
+    globalDescription: PLACEHOLDERS.DEFAULT_GLOBAL_DESCRIPTION,
     overtimeList: []
   });
 
@@ -218,7 +218,7 @@ function App() {
 
       const taskText = overtimeState.isDescriptionSame
         ? (overtimeState.globalDescription || '')
-        : (existing ? existing.task : TEXTS.DEFAULT_GLOBAL_DESCRIPTION);
+        : (existing ? existing.task : PLACEHOLDERS.DEFAULT_GLOBAL_DESCRIPTION);
 
       return {
         id: existing ? existing.id : q.date,
@@ -407,7 +407,7 @@ function App() {
             >
               <div className="flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
-                <span>Timesheet Form Editor</span>
+                <span>Timesheet Form</span>
               </div>
               <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isTimesheetFormOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -442,7 +442,7 @@ function App() {
             >
               <div className="flex items-center gap-2">
                 <FileText className="w-5 h-5" />
-                <span>Overtime Form Editor</span>
+                <span>Overtime Form</span>
               </div>
               <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isOvertimeFormOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -466,7 +466,7 @@ function App() {
             >
               <div className="flex items-center gap-2">
                 <Upload className="w-5 h-5" />
-                <span>Import & Logo Assets</span>
+                <span>Import Logo And Employee Signature (Optional)</span>
               </div>
               <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isAssetsFormOpen ? 'rotate-180' : ''}`} />
             </button>
