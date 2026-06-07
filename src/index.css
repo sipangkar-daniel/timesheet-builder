@@ -1,0 +1,319 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  
+  /* Mandiri Compliance Color Palette */
+  --color-mandiri-blue: #0A3966;
+  --color-mandiri-yellow: #F2A72B;
+  
+  /* Condition Formatting Colors */
+  --color-holiday-purple: #8165a2;
+  --color-weekend-blue: #4aacc7;
+  --color-leave-orange: #f79747;
+  
+  /* Custom UI Transitions */
+  --animate-fade-in: fade-in 0.3s ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Glassmorphism panel styling (Enforced Light Mode) */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 20px -2px rgba(10, 57, 102, 0.05);
+}
+
+/* PDF Print styles and page bounds */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-area {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.3);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.5);
+}
+
+/* Reset baseline borders for spreadsheet live view */
+.excel-table th, .excel-table td {
+  border: 1px solid #cbd5e1;
+}
+
+/* Print specific Excel overrides to guarantee crisp black borders in exported canvas */
+.pdf-render-mode {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+}
+
+.pdf-render-mode .no-print {
+  display: none !important;
+}
+
+.pdf-render-mode .excel-table th, 
+.pdf-render-mode .excel-table td {
+  border: 1px solid #000000 !important;
+  color: #000000 !important;
+}
+
+.pdf-render-mode input,
+.pdf-render-mode textarea {
+  border: none !important;
+  background: transparent !important;
+  color: #000000 !important;
+  box-shadow: none !important;
+}
+
+/* ==========================================
+   POPPING FORM CONTROLS - RADIO BUTTONS
+   ========================================== */
+.pop-radio-container {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.pop-radio-label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  user-select: none;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  transition: all 0.2s ease-out;
+}
+
+.pop-radio-label:hover {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+/* Hide default radio input */
+.pop-radio-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Custom radio circle indicator */
+.pop-radio-indicator {
+  position: relative;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  background-color: #ffffff;
+  transition: border-color 0.25s, background-color 0.25s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Inner dot */
+.pop-radio-indicator::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background-color: currentColor;
+  transform: scale(0);
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Confetti popping ring ripple */
+.pop-radio-indicator::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(0.8);
+  pointer-events: none;
+}
+
+/* Checked states */
+.pop-radio-input:checked + .pop-radio-indicator {
+  border-color: currentColor;
+  animation: pop-bounce-circle 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.35) forwards;
+}
+
+.pop-radio-input:checked + .pop-radio-indicator::before {
+  transform: scale(1);
+  animation: pop-dot 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.35) forwards;
+}
+
+.pop-radio-input:checked + .pop-radio-indicator::after {
+  animation: pop-ripple-ring 0.35s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+}
+
+/* Dynamic color skins for selected brushes */
+.pop-radio-label:has(.pop-radio-input:checked) {
+  box-shadow: 0 2px 8px -2px currentColor;
+  background-color: white;
+}
+
+/* Keyframe animations */
+@keyframes pop-dot {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+
+@keyframes pop-bounce-circle {
+  0% { transform: scale(0.9); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@keyframes pop-ripple-ring {
+  0% { transform: scale(0.8); opacity: 0.85; }
+  60% { opacity: 0.6; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+
+/* ==========================================
+   VERTICAL TEXT STYLING FOR MERGED EXCEL CELLS
+   ========================================== */
+.vertical-text {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: 0.2em;
+  font-weight: 700;
+  font-size: 8px;
+  line-height: 1.2;
+  color: #1e293b;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* ==========================================
+   CSS GRID SHEET – html2canvas-compatible table
+   Replaces <table rowspan/colspan> to fix:
+     1. Double-border artefacts (uses right+bottom only, no border-collapse)
+     2. Merge-cell failures (grid-column/row span supported by html2canvas)
+     3. Vertical text (character-by-character flex stacking)
+   ========================================== */
+.sheet-grid {
+  /* Outer border: only top + left; each cell supplies its own right + bottom */
+  border-top:  1px solid #cbd5e1;
+  border-left: 1px solid #cbd5e1;
+}
+
+.sheet-cell {
+  border-right:  1px solid #cbd5e1;
+  border-bottom: 1px solid #cbd5e1;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  padding: 2px 3px;
+  min-height: 22px;
+  background-color: #ffffff;
+  color: #000000;
+}
+
+/* PDF render mode – solid black borders, no double lines */
+.pdf-render-mode .sheet-grid {
+  border-top-color:  #000000 !important;
+  border-left-color: #000000 !important;
+}
+
+.pdf-render-mode .sheet-cell {
+  border-right-color:  #000000 !important;
+  border-bottom-color: #000000 !important;
+  color: #000000 !important;
+}
+
+.pdf-render-mode .excel-cell-input {
+  color: #000000 !important;
+  background: transparent !important;
+  -webkit-appearance: none;
+}
+
+/* ── Input value overlay (Bug fix: html2canvas does not read React       ──
+   ── controlled input .value property, it reads the DOM attribute only). ──
+   ── In normal mode the overlay is hidden so only the real input shows.  ──
+   ── In pdf-render-mode the input is invisible and the overlay renders   ──
+   ── the numeric value as plain text for html2canvas to capture.         ── */
+.pdf-value-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: #000000;
+  pointer-events: none;
+  background: transparent;
+}
+
+.pdf-render-mode .pdf-value-overlay {
+  display: flex;
+}
+
+.pdf-render-mode .pdf-hide-input {
+  opacity: 0 !important;
+}
+
+/* ── Custom Backgrounds and Spin Reset ── */
+.pdf-bg-purple { background-color: #e8dbf2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.pdf-bg-blue { background-color: #d8eff5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.pdf-bg-orange { background-color: #fce8d7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+.excel-cell-input::-webkit-outer-spin-button,
+.excel-cell-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.excel-cell-input {
+  -moz-appearance: textfield;
+}
+
+/* Excel-style row selection highlighting */
+.selected-row-cell {
+  background-color: #f1f5f9 !important; /* soft grey selection background */
+}
+.dark .selected-row-cell {
+  background-color: #334155 !important;
+}
+
