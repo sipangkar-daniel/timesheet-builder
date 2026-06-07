@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Calendar, FileText, UserCheck, ChevronDown } from 'lucide-react';
 import { PLACEHOLDERS } from '../utils/constants';
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import  { useState, useEffect, useRef } from 'react';
 import { TimesheetForm } from './components/TimesheetForm';
 import { TimesheetPreview } from './components/TimesheetPreview';
 import { OvertimeForm } from './components/OvertimeForm';
@@ -199,8 +199,8 @@ function App() {
       // Determine starting hour: Weekday is 17:00 (5 PM), Weekend/Holiday is 09:00 (9 AM)
       const startHour = q.isWeekday ? 17 : 9;
       
-      // If startHour + hours goes past 24:00 (midnight), cap at 24:00 and adjust the hours count
-      let displayHours = q.hours;
+      // If startHour + hours goes past 24:00 (midnight), cap at 24:00 and adjust the hours count + 1 hour istirahat
+      let displayHours = q.hours + 1;
       if (startHour + q.hours > 24) {
         displayHours = 24 - startHour;
       }
@@ -240,6 +240,7 @@ function App() {
 
     const isDifferent = JSON.stringify(overtimeState.overtimeList) !== JSON.stringify(newOvertimeList);
     if (isDifferent) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOvertimeState(prev => ({
         ...prev,
         overtimeList: newOvertimeList

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { parseJiraCSV, parseJiraJSON } from '../utils/csvParser';
 import { MultiDatePicker } from './MultiDatePicker';
 import { MonthYearPicker } from './MonthYearPicker';
@@ -23,14 +23,6 @@ export const TimesheetForm = ({
   const [jsonText, setJsonText] = useState('');
   const [showJsonInput, setShowJsonInput] = useState(false);
   const [csvFileName, setCsvFileName] = useState('');
-
-  // Handle Text inputs
-  const handleInputChange = (field, value) => {
-    setState(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
 
   const handlePersonnelChange = (field, value) => {
     setPersonnel(prev => ({

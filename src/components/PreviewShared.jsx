@@ -1,7 +1,6 @@
 import { FileDown, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
 import defaultCompanyLogo from '../assets/images/company-logo.png';
 import defaultVendorLogo from '../assets/images/vendor-logo.png';
-import { TEXTS } from '../utils/constants';
 
 export const PreviewActionPanel = ({ 
   onExportPdf, 
@@ -82,7 +81,7 @@ export const PreviewBrandingHeader = ({ type, companyLogoUrl, vendorLogoUrl }) =
     return (
       <div className="flex justify-end items-center pb-3 mb-6">
         <img 
-          src={companyLogoUrl || defaultCompanyLogo} 
+          src={companyLogoUrl || defaultCompanyLogo}
           alt="Company Logo" 
           className="h-8 object-contain" 
         />

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { MONTHS } from '../utils/dateHelpers';
 
@@ -9,6 +9,7 @@ export const MonthYearPicker = ({ year, month, onChange }) => {
 
   // Sync tempYear when year prop changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTempYear(year);
   }, [year]);
 

@@ -187,15 +187,6 @@ export const TimesheetPreview = ({
     return "";
   };
 
-  // Determine date column background color
-  const getColColorClass = (day) => {
-    const key = getDateKey(day);
-    if (holidayDays.includes(key)) return 'bg-holiday-purple/35 text-white pdf-bg-purple';
-    if (weekendDays.includes(key)) return 'bg-weekend-blue/30 text-gray-800 pdf-bg-blue';
-    if (leaveDays.includes(key)) return 'bg-leave-orange/30 text-gray-800 pdf-bg-orange';
-    return '';
-  };
-
   // Get cell value for the default activities row
   const getDefaultRowValue = (day) => {
     if (tickets.length === 0) return 0;
@@ -293,7 +284,6 @@ export const TimesheetPreview = ({
   const GR_HDR1  = 1;
   const GR_HDR2  = 2;
   const GR_DEF   = 3;                           // default activities row
-  const grTicket = (i) => GR_DEF + 1 + i;      // ticket[0] → row 4, [1] → 5 …
   const GR_TOTAL = GR_DEF + totalContentRows;   // row after the last content row
 
   // Returns the minimal inline style needed to place a cell in the grid.

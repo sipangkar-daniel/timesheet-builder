@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { formatIndonesianDate } from '../utils/dateHelpers';
 import { PreviewActionPanel, PreviewViewport, PreviewBrandingHeader, SignatureBox } from './PreviewShared';
 import { PLACEHOLDERS, TEXTS } from '../utils/constants';
