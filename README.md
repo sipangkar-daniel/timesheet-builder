@@ -74,7 +74,7 @@ Merge & Unmerge table cells (live preview support)
 ## 📦 Installation
 
 ```bash
-git clone https://github.com/your-username/timesheet-builder.git
+git clone https://github.com/sipangkar-daniel/timesheet-builder.git
 cd timesheet-builder
 npm install
 npm run dev
