@@ -7,7 +7,7 @@ import { getWeekendsInMonth, getMonthNameId, getDaysInMonth } from './utils/date
 import { exportToPdf } from './utils/pdfExporter';
 import { Calendar, FileText, Sparkles, Loader2, CheckCircle2, ChevronDown, Upload } from 'lucide-react';
 import defaultSignature from './assets/images/default-signature.png';
-import {PLACEHOLDERS, TEXTS} from './utils/constants';
+import {PLACEHOLDERS} from './utils/constants';
 
 function App() {
   // Accordion open/close states

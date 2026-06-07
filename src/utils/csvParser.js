@@ -144,6 +144,6 @@ export const parseJiraJSON = (jsonText) => {
     return [];
   } catch (err) {
     console.error("JSON parsing error: ", err);
-    throw new Error("Invalid JSON format. Check console for details.");
+    throw new Error("Invalid JSON format. Check console for details.", { cause: err });
   }
 };
