@@ -18,6 +18,10 @@ export const exportToPdf = (elementId, options = {}) => {
     return Promise.reject(`Element #${elementId} not found.`);
   }
 
+  // Save the original zoom style to restore it later, and override it to 1 for perfect PDF scale
+  const originalZoom = element.style.zoom;
+  element.style.zoom = '1';
+
   // Inject a PDF render class to apply clean black borders and hide interactive forms
   element.classList.add('pdf-render-mode');
 
@@ -48,10 +52,13 @@ export const exportToPdf = (elementId, options = {}) => {
     .then(() => {
       // Restore default interactive styles
       element.classList.remove('pdf-render-mode');
+      element.style.zoom = originalZoom;
     })
     .catch((err) => {
       element.classList.remove('pdf-render-mode');
+      element.style.zoom = originalZoom;
       console.error("html2pdf processing failed: ", err);
       throw err;
     });
 };
+

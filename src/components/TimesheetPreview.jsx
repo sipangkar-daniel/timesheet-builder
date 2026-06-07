@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { getDaysInMonth, getDayAbbreviation, getMonthNameId } from '../utils/dateHelpers';
 import { PreviewActionPanel, PreviewViewport, PreviewBrandingHeader } from './PreviewShared';
 import { PLACEHOLDERS, TEXTS } from '../utils/constants';
@@ -17,6 +17,11 @@ export const TimesheetPreview = ({
   signatureEmployeeUrl,
   personnel
 }) => {
+  const [zoom, setZoom] = useState(1.0);
+  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2.0));
+  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.5));
+  const handleZoomReset = () => setZoom(1.0);
+
   const { 
     employeeName, 
     roleName, 
@@ -184,11 +189,19 @@ export const TimesheetPreview = ({
         exportLabel="Export Timesheet PDF"
         onResetEdits={onResetOverrides}
         resetLabel="Reset Edits"
+        zoom={zoom}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onZoomReset={handleZoomReset}
       />
 
       <PreviewViewport>
         {/* Spreadsheet Frame (Target of PDF generation) */}
-        <div id="timesheet-pdf-area" className="print-area font-sans text-black w-[1080px] mx-auto bg-white p-4">
+        <div 
+          id="timesheet-pdf-area" 
+          className="print-area font-sans text-black w-[1080px] mx-auto bg-white p-4"
+          style={{ zoom: zoom }}
+        >
           <PreviewBrandingHeader 
             type="timesheet"
             companyLogoUrl={companyLogoUrl}

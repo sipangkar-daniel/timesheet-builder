@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { formatIndonesianDate } from '../utils/dateHelpers';
 import { PreviewActionPanel, PreviewViewport, PreviewBrandingHeader, SignatureBox } from './PreviewShared';
 import { PLACEHOLDERS, TEXTS } from '../utils/constants';
@@ -10,6 +10,11 @@ export const OvertimePreview = ({
   signatureEmployeeUrl,
   personnel
 }) => {
+  const [zoom, setZoom] = useState(1.0);
+  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2.0));
+  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.5));
+  const handleZoomReset = () => setZoom(1.0);
+
   const { 
     employeeName, 
     roleName, 
@@ -35,11 +40,19 @@ export const OvertimePreview = ({
       <PreviewActionPanel 
         onExportPdf={onGeneratePdf}
         exportLabel="Export Overtime PDF"
+        zoom={zoom}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onZoomReset={handleZoomReset}
       />
 
       <PreviewViewport>
         {/* Overtime Document (Target of Portrait PDF) */}
-        <div id="overtime-pdf-area" className="print-area font-sans text-black w-[720px] mx-auto bg-white p-6 leading-relaxed">
+        <div 
+          id="overtime-pdf-area" 
+          className="print-area font-sans text-black w-[720px] mx-auto bg-white p-6 leading-relaxed"
+          style={{ zoom: zoom }}
+        >
           <PreviewBrandingHeader 
             type="overtime"
             companyLogoUrl={companyLogoUrl}
