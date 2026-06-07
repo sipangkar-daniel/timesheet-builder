@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getDaysInMonth, getDayAbbreviation, getMonthNameId, isWeekendDay } from '../utils/dateHelpers';
 import { FloatingControls, PreviewViewport, PreviewBrandingHeader } from './PreviewShared';
-import { PLACEHOLDERS, TEXTS } from '../utils/constants';
+import { PLACEHOLDERS, TEXTS, COLORS } from '../utils/constants';
 
 export const TimesheetPreview = ({ 
   state, 
@@ -16,7 +16,10 @@ export const TimesheetPreview = ({
   signatureEmployeeUrl,
   personnel,
   mergedRowGroups = [],
-  setMergedRowGroups
+  setMergedRowGroups,
+  isAutoGenerate,
+  weekdayHour,
+  weekendHour
 }) => {
   const [zoom, setZoom] = useState(1.0);
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2.0));
@@ -164,6 +167,77 @@ export const TimesheetPreview = ({
   const monthName = getMonthNameId(month);
   const daysArray = Array.from({ length: totalDays }, (_, i) => i + 1);
 
+  // 1. Get active days in the month
+  const activeDays = [];
+  for (let d = 1; d <= totalDays; d++) {
+    const dStr = String(d).padStart(2, '0');
+    const mStr = String(month).padStart(2, '0');
+    const dateKey = `${year}-${mStr}-${dStr}`;
+
+    const isHoliday = holidayDays.includes(dateKey) && !workedHolidayDays?.includes(dateKey);
+    const isLeave = leaveDays.includes(dateKey);
+    const isWeekend = weekendDays.includes(dateKey);
+
+    if (!isHoliday && !isLeave && !isWeekend) {
+      const isWorkedHoliday = workedHolidayDays?.includes(dateKey);
+      const isPhysicallyWeekend = isWeekendDay(year, month, d);
+      activeDays.push({
+        day: d,
+        dateKey,
+        isWeekendOrWorkedHoliday: isPhysicallyWeekend || isWorkedHoliday
+      });
+    }
+  }
+
+  // 2. Pre-calculate auto-generated hours map
+  const autoHours = {};
+  if (isAutoGenerate && activeDays.length > 0 && tickets.length > 0) {
+    const M = activeDays.length;
+    const N = tickets.length;
+    const baseCount = Math.floor(N / M);
+    const remainder = N % M;
+
+    tickets.forEach(t => {
+      const ticketKey = t.id || t.ticketNumber;
+      autoHours[ticketKey] = {};
+    });
+
+    let ticketIdx = 0;
+    activeDays.forEach((activeDay, i) => {
+      const d = activeDay.day;
+      const hourPerTicket = activeDay.isWeekendOrWorkedHoliday ? weekendHour : weekdayHour;
+      const count = i < remainder ? baseCount + 1 : baseCount;
+
+      for (let c = 0; c < count; c++) {
+        if (ticketIdx < N) {
+          const ticket = tickets[ticketIdx];
+          const ticketKey = ticket.id || ticket.ticketNumber;
+          const rowIdx = 1 + ticketIdx;
+          const group = mergedRowGroups.find(g => g.indices.includes(rowIdx));
+          const isHidden = group ? group.indices[0] !== rowIdx : false;
+
+          if (isHidden) {
+            autoHours[ticketKey][d] = 0;
+          } else {
+            autoHours[ticketKey][d] = hourPerTicket;
+          }
+          ticketIdx++;
+        }
+      }
+    });
+  }
+
+  const getAutoHoursSumForDay = (day) => {
+    let sum = 0;
+    tickets.forEach(ticket => {
+      const ticketKey = ticket.id || ticket.ticketNumber;
+      if (autoHours[ticketKey] && autoHours[ticketKey][day] !== undefined) {
+        sum += autoHours[ticketKey][day];
+      }
+    });
+    return sum;
+  };
+
   // Helper to format date string for state lookup
   const getDateKey = (day) => {
     const dStr = String(day).padStart(2, '0');
@@ -188,12 +262,33 @@ export const TimesheetPreview = ({
   // Check if a specific day is a Weekend, Holiday, or Leave day
   const isDaySpecial = (day) => {
     const key = getDateKey(day);
-    if (hasManualOverrides(day) || manuallyEditingDays[day]) {
+    if (manuallyEditingDays[day]) {
       return false;
     }
-    return weekendDays.includes(key) || 
-           (holidayDays.includes(key) && !workedHolidayDays.includes(key)) || 
-           leaveDays.includes(key);
+
+    const isHoliday = holidayDays.includes(key) && !workedHolidayDays.includes(key);
+    const isLeave = leaveDays.includes(key);
+    if (isHoliday || isLeave) {
+      if (hasManualOverrides(day)) {
+        return false;
+      }
+      return true;
+    }
+
+    if (weekendDays.includes(key)) {
+      if (hasManualOverrides(day)) {
+        return false;
+      }
+      if (isAutoGenerate) {
+        const autoSum = getAutoHoursSumForDay(day);
+        if (autoSum > 0) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    return false;
   };
 
   // Get vertical label text for merged special day columns
@@ -207,11 +302,11 @@ export const TimesheetPreview = ({
 
   // Get cell value for the default activities row
   const getDefaultRowValue = (day) => {
-    if (tickets.length === 0) return 0;
-    const key = getDateKey(day);
     if (hoursOverrides['default'] && hoursOverrides['default'][day] !== undefined) {
       return hoursOverrides['default'][day];
     }
+    if (tickets.length === 0) return 0;
+    const key = getDateKey(day);
 
     const isWeekend = isWeekendDay(year, month, day);
     const isWorkedHoliday = workedHolidayDays.includes(key);
@@ -238,6 +333,11 @@ export const TimesheetPreview = ({
   const getTicketRowValue = (ticketKey, day) => {
     if (hoursOverrides[ticketKey] && hoursOverrides[ticketKey][day] !== undefined) {
       return hoursOverrides[ticketKey][day];
+    }
+    if (isAutoGenerate) {
+      return autoHours[ticketKey] && autoHours[ticketKey][day] !== undefined
+        ? autoHours[ticketKey][day]
+        : 0;
     }
     return 0;
   };
@@ -325,9 +425,9 @@ export const TimesheetPreview = ({
     if (!isDaySpecial(day)) return null;
     const key = getDateKey(day);
     if (workedHolidayDays.includes(key)) return null;
-    if (holidayDays.includes(key)) return '#e8dbf2';
-    if (weekendDays.includes(key)) return '#d8eff5';
-    if (leaveDays.includes(key))   return '#fce8d7';
+    if (holidayDays.includes(key)) return COLORS.HOLIDAY;
+    if (weekendDays.includes(key)) return COLORS.WEEKEND;
+    if (leaveDays.includes(key))   return COLORS.LEAVE;
     return null;
   };
 

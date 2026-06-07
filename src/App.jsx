@@ -1,699 +1,935 @@
-import  { useState, useEffect, useRef } from 'react';
-import { TimesheetForm } from './components/TimesheetForm';
-import { TimesheetPreview } from './components/TimesheetPreview';
-import { OvertimeForm } from './components/OvertimeForm';
-import { OvertimePreview } from './components/OvertimePreview';
-import { getWeekendsInMonth, getMonthNameId, getDaysInMonth, isWeekendDay } from './utils/dateHelpers';
-import { exportToPdf } from './utils/pdfExporter';
-import { Calendar, FileText, Sparkles, Loader2, CheckCircle2, ChevronDown, Upload } from 'lucide-react';
+import {useState, useEffect, useRef} from 'react';
+import {TimesheetForm} from './components/TimesheetForm';
+import {TimesheetPreview} from './components/TimesheetPreview';
+import {OvertimeForm} from './components/OvertimeForm';
+import {OvertimePreview} from './components/OvertimePreview';
+import {getWeekendsInMonth, getMonthNameId, getDaysInMonth, isWeekendDay} from './utils/dateHelpers';
+import {exportToPdf} from './utils/pdfExporter';
+import {Calendar, FileText, Sparkles, Loader2, CheckCircle2, ChevronDown, Upload} from 'lucide-react';
 import defaultSignature from './assets/images/default-signature.png';
-import { PLACEHOLDERS, TEXTS } from './utils/constants';
+import {PLACEHOLDERS, TEXTS} from './utils/constants';
 
 function App() {
-  // Accordion open/close states
-  const [isTimesheetFormOpen, setIsTimesheetFormOpen] = useState(false);
-  const [isOvertimeFormOpen, setIsOvertimeFormOpen] = useState(false);
-  const [isAssetsFormOpen, setIsAssetsFormOpen] = useState(false);
+    // Accordion open/close states
+    const [isTimesheetFormOpen, setIsTimesheetFormOpen] = useState(false);
+    const [isOvertimeFormOpen, setIsOvertimeFormOpen] = useState(false);
+    const [isAssetsFormOpen, setIsAssetsFormOpen] = useState(false);
 
-  // DRAGGABLE LAYOUT RESIZER STATE
-  const [leftWidth, setLeftWidth] = useState(40); // default 40%
-  const [isDragging, setIsDragging] = useState(false);
-  const [isLargeScreen, setIsLargeScreen] = useState(window.innerWidth >= 1024);
-  const containerRef = useRef(null);
+    // DRAGGABLE LAYOUT RESIZER STATE
+    const [leftWidth, setLeftWidth] = useState(40); // default 40%
+    const [isDragging, setIsDragging] = useState(false);
+    const [isLargeScreen, setIsLargeScreen] = useState(window.innerWidth >= 1024);
+    const containerRef = useRef(null);
 
-  useEffect(() => {
-    const handleResize = () => {
-      setIsLargeScreen(window.innerWidth >= 1024);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    useEffect(() => {
+        const handleResize = () => {
+            setIsLargeScreen(window.innerWidth >= 1024);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
-  const handleMouseDown = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handleMouseMove = (e) => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        const newWidth = ((e.clientX - rect.left) / rect.width) * 100;
-        if (newWidth >= 20 && newWidth <= 65) {
-          setLeftWidth(newWidth);
-        }
-      }
+    const handleMouseDown = (e) => {
+        e.preventDefault();
+        setIsDragging(true);
     };
 
-    const handleMouseUp = () => {
-      setIsDragging(false);
+    useEffect(() => {
+        if (!isDragging) return;
+
+        const handleMouseMove = (e) => {
+            if (containerRef.current) {
+                const rect = containerRef.current.getBoundingClientRect();
+                const newWidth = ((e.clientX - rect.left) / rect.width) * 100;
+                if (newWidth >= 20 && newWidth <= 65) {
+                    setLeftWidth(newWidth);
+                }
+            }
+        };
+
+        const handleMouseUp = () => {
+            setIsDragging(false);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging]);
+
+    const handleDoubleClick = () => {
+        setLeftWidth(40); // Reset to default 40%
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    // ==========================================
+    // STATE FOR FEATURE 1: TIMESHEET BUILDER
+    // ==========================================
+    const [personnelState, setPersonnelState] = useState({
+        employeeName: "",
+        roleName: "",
+        supervisorName: "",
+        supervisorRole: "",
+        departmentHeadName: ""
+    });
 
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging]);
+    // ==========================================
+    // STATE FOR FEATURE 1: TIMESHEET BUILDER
+    // ==========================================
+    const [timesheetState, setTimesheetState] = useState({
+        year: 2026,
+        month: 5,
+        weekendDays: getWeekendsInMonth(2026, 5),
+        holidayDays: [],
+        leaveDays: [],
+        workedHolidayDays: []
+    });
 
-  const handleDoubleClick = () => {
-    setLeftWidth(40); // Reset to default 40%
-  };
+    const [defaultActivities, setDefaultActivities] = useState(PLACEHOLDERS.DEFAULT_ACTIVITIES);
+    const [hourOfDefaultActivities, setHourOfDefaultActivities] = useState(PLACEHOLDERS.DEFAULT_BASELINE_HOURS);
+    const [isAutoGenerate, setIsAutoGenerate] = useState(PLACEHOLDERS.DEFAULT_AUTO_GENERATE);
+    const [weekdayHour, setWeekdayHour] = useState(PLACEHOLDERS.DEFAULT_WEEKDAY_HOUR);
+    const [weekendHour, setWeekendHour] = useState(PLACEHOLDERS.DEFAULT_WEEKEND_HOUR);
 
-  // ==========================================
-  // STATE FOR FEATURE 1: TIMESHEET BUILDER
-  // ==========================================
-  const [personnelState, setPersonnelState] = useState({
-    employeeName: "",
-    roleName: "",
-    supervisorName: "",
-    supervisorRole: "",
-    departmentHeadName: ""
-  });
+    const [timesheetTickets, setTimesheetTickets] = useState([]);
+    const [mergedRowGroups, setMergedRowGroups] = useState([]);
 
-  // ==========================================
-  // STATE FOR FEATURE 1: TIMESHEET BUILDER
-  // ==========================================
-  const [timesheetState, setTimesheetState] = useState({
-    year: 2026,
-    month: 5,
-    weekendDays: getWeekendsInMonth(2026, 5),
-    holidayDays: [],
-    leaveDays: [],
-    workedHolidayDays: []
-  });
+    const [timesheetHoursOverrides, setTimesheetHoursOverrides] = useState({});
+    const [globalLogos, setGlobalLogos] = useState({
+        companyLogo: null,
+        vendorLogo: null,
+        signatureEmployee: defaultSignature
+    });
 
-  const [defaultActivities, setDefaultActivities] = useState(PLACEHOLDERS.DEFAULT_ACTIVITIES);
-  const [hourOfDefaultActivities, setHourOfDefaultActivities] = useState(PLACEHOLDERS.DEFAULT_BASELINE_HOURS);
+    // ==========================================
+    // STATE FOR FEATURE 2: OVERTIME BUILDER
+    // ==========================================
+    const [overtimeState, setOvertimeState] = useState({
+        formTitle: "SURAT KETERANGAN KERJA LEMBUR",
+        formDescription: "Sehubungan dengan adanya pekerjaan yang tidak dapat ditangguhkan penyelesaiannya, maka dengan ini saya meminta kepada karyawan tersebut di bawah ini untuk melakukan kerja lembur pada hari dan waktu sebagaimana tercantum dalam daftar lembur di bawah ini:",
+        isDescriptionSame: true,
+        globalDescription: PLACEHOLDERS.DEFAULT_GLOBAL_DESCRIPTION,
+        overtimeList: []
+    });
 
-  const [timesheetTickets, setTimesheetTickets] = useState([]);
-  const [mergedRowGroups, setMergedRowGroups] = useState([]);
+    // ==========================================
+    // PDF EXPORT & IMPORT POPUP MODAL STATE
+    // ==========================================
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [exportedFilename, setExportedFilename] = useState('');
 
-  const [timesheetHoursOverrides, setTimesheetHoursOverrides] = useState({});
-  const [globalLogos, setGlobalLogos] = useState({
-    companyLogo: null,
-    vendorLogo: null,
-    signatureEmployee: defaultSignature
-  });
-
-  // ==========================================
-  // STATE FOR FEATURE 2: OVERTIME BUILDER
-  // ==========================================
-  const [overtimeState, setOvertimeState] = useState({
-    formTitle: "SURAT KETERANGAN KERJA LEMBUR",
-    formDescription: "Sehubungan dengan adanya pekerjaan yang tidak dapat ditangguhkan penyelesaiannya, maka dengan ini saya meminta kepada karyawan tersebut di bawah ini untuk melakukan kerja lembur pada hari dan waktu sebagaimana tercantum dalam daftar lembur di bawah ini:",
-    isDescriptionSame: true,
-    globalDescription: PLACEHOLDERS.DEFAULT_GLOBAL_DESCRIPTION,
-    overtimeList: []
-  });
-
-  // ==========================================
-  // PDF EXPORT & IMPORT POPUP MODAL STATE
-  // ==========================================
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [exportedFilename, setExportedFilename] = useState('');
-
-  const [showImportSuccess, setShowImportSuccess] = useState(false);
-  const [showImportError, setShowImportError] = useState(false);
-  const [importSuccessCount, setImportSuccessCount] = useState(0);
-  const [importErrorMsg, setImportErrorMsg] = useState('');
+    const [showImportSuccess, setShowImportSuccess] = useState(false);
+    const [showImportError, setShowImportError] = useState(false);
+    const [importSuccessCount, setImportSuccessCount] = useState(0);
+    const [importErrorMsg, setImportErrorMsg] = useState('');
 
 
+    // ==========================================
+    // AUTOMATIC OVERTIME SCHEDULE DERIVATION
+    // ==========================================
+    useEffect(() => {
+        const totalDays = getDaysInMonth(timesheetState.year, timesheetState.month);
+        const qualifying = [];
 
-  // ==========================================
-  // AUTOMATIC OVERTIME SCHEDULE DERIVATION
-  // ==========================================
-  useEffect(() => {
-    const totalDays = getDaysInMonth(timesheetState.year, timesheetState.month);
-    const qualifying = [];
+        // 1. Get active days in the month
+        const activeDays = [];
+        for (let d = 1; d <= totalDays; d++) {
+            const dStr = String(d).padStart(2, '0');
+            const mStr = String(timesheetState.month).padStart(2, '0');
+            const dateKey = `${timesheetState.year}-${mStr}-${dStr}`;
 
-    for (let day = 1; day <= totalDays; day++) {
-      const dStr = String(day).padStart(2, '0');
-      const mStr = String(timesheetState.month).padStart(2, '0');
-      const dateKey = `${timesheetState.year}-${mStr}-${dStr}`;
+            const isHoliday = timesheetState.holidayDays.includes(dateKey) && !timesheetState.workedHolidayDays?.includes(dateKey);
+            const isLeave = timesheetState.leaveDays.includes(dateKey);
+            const isWeekend = timesheetState.weekendDays.includes(dateKey);
 
-      // Calculate total daily hours from Timesheet
-      let defVal = timesheetTickets.length === 0 ? 0 : hourOfDefaultActivities;
-      
-      const isWeekend = isWeekendDay(timesheetState.year, timesheetState.month, day);
-      const isWorkedHoliday = timesheetState.workedHolidayDays?.includes(dateKey);
-
-      if (isWeekend || isWorkedHoliday) {
-        defVal = 0;
-      } else {
-        const isSpecial = timesheetState.weekendDays.includes(dateKey) || 
-                          (timesheetState.holidayDays.includes(dateKey) && !timesheetState.workedHolidayDays?.includes(dateKey)) || 
-                          timesheetState.leaveDays.includes(dateKey);
-        if (isSpecial) defVal = 0;
-      }
-
-      if (timesheetHoursOverrides['default'] && timesheetHoursOverrides['default'][day] !== undefined) {
-        defVal = timesheetHoursOverrides['default'][day];
-      }
-
-      let daySum = Number(defVal || 0);
-      timesheetTickets.forEach(ticket => {
-        let ticketVal = 0;
-        const ticketKey = ticket.id || ticket.ticketNumber;
-        if (timesheetHoursOverrides[ticketKey] && timesheetHoursOverrides[ticketKey][day] !== undefined) {
-          ticketVal = timesheetHoursOverrides[ticketKey][day];
-        }
-        daySum += Number(ticketVal || 0);
-      });
-
-      if (daySum > 0) {
-        const isWeekend = isWeekendDay(timesheetState.year, timesheetState.month, day);
-        const isWorkedHoliday = timesheetState.workedHolidayDays?.includes(dateKey);
-        const isHoliday = timesheetState.holidayDays.includes(dateKey);
-        const isLeave = timesheetState.leaveDays.includes(dateKey);
-
-        // Regular holidays and leave days do not generate overtime
-        if (isLeave || (isHoliday && !isWorkedHoliday)) {
-          continue;
+            if (!isHoliday && !isLeave && !isWeekend) {
+                const isWorkedHoliday = timesheetState.workedHolidayDays?.includes(dateKey);
+                const isPhysicallyWeekend = isWeekendDay(timesheetState.year, timesheetState.month, d);
+                activeDays.push({
+                    day: d,
+                    dateKey,
+                    isWeekendOrWorkedHoliday: isPhysicallyWeekend || isWorkedHoliday
+                });
+            }
         }
 
-        if (isWeekend) {
-          qualifying.push({
-            date: dateKey,
-            hours: daySum,
-            isWeekend: true,
-            isWeekday: false,
-            isHoliday: false
-          });
-        } else if (isWorkedHoliday) {
-          qualifying.push({
-            date: dateKey,
-            hours: daySum,
-            isWeekend: false,
-            isWeekday: false,
-            isHoliday: true
-          });
-        } else {
-          // Regular Work Day (Weekday)
-          if (daySum > 8) {
-            qualifying.push({
-              date: dateKey,
-              hours: daySum + 1 - 8,
-              isWeekend: false,
-              isWeekday: true,
-              isHoliday: false
+        // 2. Pre-calculate auto-generated hours if enabled
+        let autoHours = {};
+        if (isAutoGenerate && activeDays.length > 0 && timesheetTickets.length > 0) {
+            const M = activeDays.length;
+            const N = timesheetTickets.length;
+            const baseCount = Math.floor(N / M);
+            const remainder = N % M;
+
+            timesheetTickets.forEach(t => {
+                const ticketKey = t.id || t.ticketNumber;
+                autoHours[ticketKey] = {};
             });
-          }
+
+            let ticketIdx = 0;
+            activeDays.forEach((activeDay, i) => {
+                const d = activeDay.day;
+                const hourPerTicket = activeDay.isWeekendOrWorkedHoliday ? weekendHour : weekdayHour;
+                const count = i < remainder ? baseCount + 1 : baseCount;
+
+                for (let c = 0; c < count; c++) {
+                    if (ticketIdx < N) {
+                        const ticket = timesheetTickets[ticketIdx];
+                        const ticketKey = ticket.id || ticket.ticketNumber;
+                        const rowIdx = 1 + ticketIdx;
+                        const group = mergedRowGroups.find(g => g.indices.includes(rowIdx));
+                        const isHidden = group ? group.indices[0] !== rowIdx : false;
+
+                        if (isHidden) {
+                            autoHours[ticketKey][d] = 0;
+                        } else {
+                            autoHours[ticketKey][d] = hourPerTicket;
+                        }
+                        ticketIdx++;
+                    }
+                }
+            });
         }
-      }
-    }
 
-    const newOvertimeList = qualifying.map(q => {
-      const existing = overtimeState.overtimeList.find(item => item.overtimeDate === q.date);
+        for (let day = 1; day <= totalDays; day++) {
+            const dStr = String(day).padStart(2, '0');
+            const mStr = String(timesheetState.month).padStart(2, '0');
+            const dateKey = `${timesheetState.year}-${mStr}-${dStr}`;
 
-      // Determine starting hour: Weekday is 17:00 (5 PM), Weekend/Holiday is 09:00 (9 AM)
-      const startHour = q.isWeekday ? 17 : 9;
-      
-      // Calculate derived/default hours
-      let derivedHours = q.hours;
-      if (startHour + q.hours > 24) {
-        derivedHours = 24 - startHour;
-      }
+            let daySum = 0;
+            if (isAutoGenerate) {
+                // Calculate default row baseline hours (same as manual mode)
+                let defVal = timesheetTickets.length === 0 ? 0 : hourOfDefaultActivities;
+                const isWeekend = isWeekendDay(timesheetState.year, timesheetState.month, day);
+                const isWorkedHoliday = timesheetState.workedHolidayDays?.includes(dateKey);
 
-      const formatTime = (h) => `${String(h).padStart(2, '0')}:00`;
+                if (isWeekend || isWorkedHoliday) {
+                    defVal = 0;
+                } else {
+                    const isSpecial = timesheetState.weekendDays.includes(dateKey) ||
+                        (timesheetState.holidayDays.includes(dateKey) && !timesheetState.workedHolidayDays?.includes(dateKey)) ||
+                        timesheetState.leaveDays.includes(dateKey);
+                    if (isSpecial) defVal = 0;
+                }
 
-      // Sync/re-derive if the calculated derived hours changed
-      const hoursChanged = existing ? existing.derivedHours !== derivedHours : false;
+                if (timesheetHoursOverrides['default'] && timesheetHoursOverrides['default'][day] !== undefined) {
+                    defVal = timesheetHoursOverrides['default'][day];
+                }
+                daySum += Number(defVal || 0);
 
-      let overtimeHours = derivedHours;
-      if (existing && !hoursChanged) {
-        // Preserve manual override of overtimeHours if it exists and timesheet didn't change
-        overtimeHours = existing.overtimeHours !== undefined ? existing.overtimeHours : derivedHours;
-      }
+                timesheetTickets.forEach(ticket => {
+                    const ticketKey = ticket.id || ticket.ticketNumber;
+                    let ticketVal = autoHours[ticketKey] && autoHours[ticketKey][day] !== undefined
+                        ? autoHours[ticketKey][day]
+                        : 0;
+                    if (timesheetHoursOverrides[ticketKey] && timesheetHoursOverrides[ticketKey][day] !== undefined) {
+                        ticketVal = timesheetHoursOverrides[ticketKey][day];
+                    }
+                    daySum += Number(ticketVal || 0);
+                });
+            } else {
+                // Calculate total daily hours from Timesheet
+                let defVal = timesheetTickets.length === 0 ? 0 : hourOfDefaultActivities;
 
-      // Automatically recalculate time range based on overtimeHours
-      let displayHours = overtimeHours;
-      if (startHour + displayHours > 24) {
-        displayHours = 24 - startHour;
-      }
-      const timeRange = `${formatTime(startHour)} - ${formatTime(startHour + displayHours)}`;
+                const isWeekend = isWeekendDay(timesheetState.year, timesheetState.month, day);
+                const isWorkedHoliday = timesheetState.workedHolidayDays?.includes(dateKey);
 
-      const taskText = overtimeState.isDescriptionSame
-        ? (overtimeState.globalDescription || '')
-        : (existing ? existing.task : PLACEHOLDERS.DEFAULT_GLOBAL_DESCRIPTION);
+                if (isWeekend || isWorkedHoliday) {
+                    defVal = 0;
+                } else {
+                    const isSpecial = timesheetState.weekendDays.includes(dateKey) ||
+                        (timesheetState.holidayDays.includes(dateKey) && !timesheetState.workedHolidayDays?.includes(dateKey)) ||
+                        timesheetState.leaveDays.includes(dateKey);
+                    if (isSpecial) defVal = 0;
+                }
 
-      return {
-        id: existing ? existing.id : q.date,
-        overtimeDate: q.date,
-        overtimeHours: overtimeHours,
-        derivedHours: derivedHours,
-        timeRange: timeRange,
-        isWeekend: q.isWeekend,
-        isWeekday: q.isWeekday,
-        isHoliday: q.isHoliday,
-        task: taskText
-      };
-    });
+                if (timesheetHoursOverrides['default'] && timesheetHoursOverrides['default'][day] !== undefined) {
+                    defVal = timesheetHoursOverrides['default'][day];
+                }
 
-    if (overtimeState.isDescriptionSame) {
-      newOvertimeList.forEach(item => {
-        item.task = overtimeState.globalDescription || '';
-      });
-    }
+                daySum = Number(defVal || 0);
+                timesheetTickets.forEach(ticket => {
+                    let ticketVal = 0;
+                    const ticketKey = ticket.id || ticket.ticketNumber;
+                    if (timesheetHoursOverrides[ticketKey] && timesheetHoursOverrides[ticketKey][day] !== undefined) {
+                        ticketVal = timesheetHoursOverrides[ticketKey][day];
+                    }
+                    daySum += Number(ticketVal || 0);
+                });
+            }
 
-    const isDifferent = JSON.stringify(overtimeState.overtimeList) !== JSON.stringify(newOvertimeList);
-    if (isDifferent) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOvertimeState(prev => ({
-        ...prev,
-        overtimeList: newOvertimeList
-      }));
-    }
-  }, [
-    timesheetState.year,
-    timesheetState.month,
-    timesheetState.weekendDays,
-    timesheetState.holidayDays,
-    timesheetState.workedHolidayDays,
-    timesheetState.leaveDays,
-    timesheetHoursOverrides,
-    timesheetTickets,
-    hourOfDefaultActivities,
-    overtimeState.overtimeList,
-    overtimeState.isDescriptionSame,
-    overtimeState.globalDescription
-  ]);
+            if (daySum > 0) {
+                const isWeekend = isWeekendDay(timesheetState.year, timesheetState.month, day);
+                const isWorkedHoliday = timesheetState.workedHolidayDays?.includes(dateKey);
+                const isHoliday = timesheetState.holidayDays.includes(dateKey);
+                const isLeave = timesheetState.leaveDays.includes(dateKey);
 
-  // ==========================================
-  // HANDLERS & ACTIONS
-  // ==========================================
-  const handleTicketsParsed = (newTickets) => {
-    const ticketsWithIds = newTickets.map((t, idx) => ({
-      ...t,
-      id: `${t.ticketNumber}-${idx}-${Date.now()}`
-    }));
-    setTimesheetTickets(ticketsWithIds);
-    setTimesheetHoursOverrides(prev => {
-      const copy = { ...prev };
-      ticketsWithIds.forEach(t => {
-        delete copy[t.id];
-      });
-      return copy;
-    });
-    setMergedRowGroups([]);
-    setImportSuccessCount(newTickets.length);
-    setShowImportSuccess(true);
-  };
+                // Regular holidays and leave days do not generate overtime
+                if (isLeave || (isHoliday && !isWorkedHoliday)) {
+                    continue;
+                }
 
-  const handleTicketsParseError = (errorMsg) => {
-    setImportErrorMsg(errorMsg);
-    setShowImportError(true);
-  };
+                if (isWeekend) {
+                    qualifying.push({
+                        date: dateKey,
+                        hours: daySum,
+                        isWeekend: true,
+                        isWeekday: false,
+                        isHoliday: false
+                    });
+                } else if (isWorkedHoliday) {
+                    qualifying.push({
+                        date: dateKey,
+                        hours: daySum,
+                        isWeekend: false,
+                        isWeekday: false,
+                        isHoliday: true
+                    });
+                } else {
+                    // Regular Work Day (Weekday)
+                    if (daySum > 8) {
+                        qualifying.push({
+                            date: dateKey,
+                            hours: daySum + 1 - 8,
+                            isWeekend: false,
+                            isWeekday: true,
+                            isHoliday: false
+                        });
+                    }
+                }
+            }
+        }
 
-  const handleLogoUpload = (e, type) => {
-    const file = e.target.files[0];
-    if (!file) {
-      setGlobalLogos(prev => ({
-        ...prev,
-        [type]: null
-      }));
-      return;
-    }
-    
-    const logoUrl = URL.createObjectURL(file);
-    setGlobalLogos(prev => ({
-      ...prev,
-      [type]: logoUrl
-    }));
-  };
+        const newOvertimeList = qualifying.map(q => {
+            const existing = overtimeState.overtimeList.find(item => item.overtimeDate === q.date);
 
-  const handleCellEdit = (rowId, day, value) => {
-    setTimesheetHoursOverrides(prev => {
-      const rowOverrides = prev[rowId] ? { ...prev[rowId] } : {};
-      rowOverrides[day] = value;
-      return {
-        ...prev,
-        [rowId]: rowOverrides
-      };
-    });
-  };
+            // Determine starting hour: Weekday is 17:00 (5 PM), Weekend/Holiday is 09:00 (9 AM)
+            const startHour = q.isWeekday ? 17 : 9;
+
+            // Calculate derived/default hours
+            let derivedHours = q.hours;
+            if (startHour + q.hours > 24) {
+                derivedHours = 24 - startHour;
+            }
+
+            const formatTime = (h) => `${String(h).padStart(2, '0')}:00`;
+
+            // Sync/re-derive if the calculated derived hours changed
+            const hoursChanged = existing ? existing.derivedHours !== derivedHours : false;
+
+            let overtimeHours = derivedHours;
+            if (existing && !hoursChanged) {
+                // Preserve manual override of overtimeHours if it exists and timesheet didn't change
+                overtimeHours = existing.overtimeHours !== undefined ? existing.overtimeHours : derivedHours;
+            }
+
+            // Automatically recalculate time range based on overtimeHours
+            let displayHours = overtimeHours;
+            if (startHour + displayHours > 24) {
+                displayHours = 24 - startHour;
+            }
+            const timeRange = `${formatTime(startHour)} - ${formatTime(startHour + displayHours)}`;
+
+            const taskText = overtimeState.isDescriptionSame
+                ? (overtimeState.globalDescription || '')
+                : (existing ? existing.task : PLACEHOLDERS.DEFAULT_GLOBAL_DESCRIPTION);
+
+            return {
+                id: existing ? existing.id : q.date,
+                overtimeDate: q.date,
+                overtimeHours: overtimeHours,
+                derivedHours: derivedHours,
+                timeRange: timeRange,
+                isWeekend: q.isWeekend,
+                isWeekday: q.isWeekday,
+                isHoliday: q.isHoliday,
+                task: taskText
+            };
+        });
+
+        if (overtimeState.isDescriptionSame) {
+            newOvertimeList.forEach(item => {
+                item.task = overtimeState.globalDescription || '';
+            });
+        }
+
+        const isDifferent = JSON.stringify(overtimeState.overtimeList) !== JSON.stringify(newOvertimeList);
+        if (isDifferent) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setOvertimeState(prev => ({
+                ...prev,
+                overtimeList: newOvertimeList
+            }));
+        }
+    }, [
+        timesheetState.year,
+        timesheetState.month,
+        timesheetState.weekendDays,
+        timesheetState.holidayDays,
+        timesheetState.workedHolidayDays,
+        timesheetState.leaveDays,
+        timesheetHoursOverrides,
+        timesheetTickets,
+        hourOfDefaultActivities,
+        overtimeState.overtimeList,
+        overtimeState.isDescriptionSame,
+        overtimeState.globalDescription,
+        isAutoGenerate,
+        weekdayHour,
+        weekendHour,
+        mergedRowGroups
+    ]);
+
+    // ==========================================
+    // AUTOMATIC SAME-DAY ROW MERGING
+    // ==========================================
+    useEffect(() => {
+        if (!isAutoGenerate) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setMergedRowGroups([]);
+            return;
+        }
+
+        const totalDays = getDaysInMonth(timesheetState.year, timesheetState.month);
+        const activeDays = [];
+        for (let d = 1; d <= totalDays; d++) {
+            const dStr = String(d).padStart(2, '0');
+            const mStr = String(timesheetState.month).padStart(2, '0');
+            const dateKey = `${timesheetState.year}-${mStr}-${dStr}`;
+
+            const isHoliday = timesheetState.holidayDays.includes(dateKey) && !timesheetState.workedHolidayDays?.includes(dateKey);
+            const isLeave = timesheetState.leaveDays.includes(dateKey);
+            const isWeekend = timesheetState.weekendDays.includes(dateKey);
+
+            if (!isHoliday && !isLeave && !isWeekend) {
+                const isWorkedHoliday = timesheetState.workedHolidayDays?.includes(dateKey);
+                const isPhysicallyWeekend = isWeekendDay(timesheetState.year, timesheetState.month, d);
+                activeDays.push({
+                    day: d,
+                    dateKey,
+                    isWeekendOrWorkedHoliday: isPhysicallyWeekend || isWorkedHoliday
+                });
+            }
+        }
+
+        if (activeDays.length > 0 && timesheetTickets.length > 0) {
+            const M = activeDays.length;
+            const N = timesheetTickets.length;
+            const baseCount = Math.floor(N / M);
+            const remainder = N % M;
+
+            const newMergedGroups = [];
+            let ticketIdx = 0;
+
+            activeDays.forEach((activeDay, i) => {
+                const count = i < remainder ? baseCount + 1 : baseCount;
+                const groupIndices = [];
+
+                for (let c = 0; c < count; c++) {
+                    if (ticketIdx < N) {
+                        groupIndices.push(1 + ticketIdx);
+                        ticketIdx++;
+                    }
+                }
+
+                if (groupIndices.length >= 2) {
+                    newMergedGroups.push({
+                        id: `auto-merge-${activeDay.day}-${i}`,
+                        indices: groupIndices
+                    });
+                }
+            });
+
+            if (JSON.stringify(mergedRowGroups) !== JSON.stringify(newMergedGroups)) {
+                setMergedRowGroups(newMergedGroups);
+            }
+        } else {
+            setMergedRowGroups([]);
+        }
+    }, [
+        isAutoGenerate,
+        timesheetTickets,
+        timesheetState.year,
+        timesheetState.month,
+        timesheetState.holidayDays,
+        timesheetState.leaveDays,
+        timesheetState.workedHolidayDays,
+        timesheetState.weekendDays,
+        mergedRowGroups
+    ]);
+
+    // ==========================================
+    // HANDLERS & ACTIONS
+    // ==========================================
+    const handleTicketsParsed = (newTickets) => {
+        const ticketsWithIds = newTickets.map((t, idx) => ({
+            ...t,
+            id: `${t.ticketNumber}-${idx}-${Date.now()}`
+        }));
+        setTimesheetTickets(ticketsWithIds);
+        setTimesheetHoursOverrides(prev => {
+            const copy = {...prev};
+            ticketsWithIds.forEach(t => {
+                delete copy[t.id];
+            });
+            return copy;
+        });
+        setMergedRowGroups([]);
+        setImportSuccessCount(newTickets.length);
+        setShowImportSuccess(true);
+    };
+
+    const handleTicketsParseError = (errorMsg) => {
+        setImportErrorMsg(errorMsg);
+        setShowImportError(true);
+    };
+
+    const handleLogoUpload = (e, type) => {
+        const file = e.target.files[0];
+        if (!file) {
+            setGlobalLogos(prev => ({
+                ...prev,
+                [type]: null
+            }));
+            return;
+        }
+
+        const logoUrl = URL.createObjectURL(file);
+        setGlobalLogos(prev => ({
+            ...prev,
+            [type]: logoUrl
+        }));
+    };
+
+    const handleCellEdit = (rowId, day, value) => {
+        setTimesheetHoursOverrides(prev => {
+            const rowOverrides = prev[rowId] ? {...prev[rowId]} : {};
+            rowOverrides[day] = value;
+            return {
+                ...prev,
+                [rowId]: rowOverrides
+            };
+        });
+    };
+
+    const generateTimesheetFileName = (employeeName, monthName, prefix) => `${prefix} - ${employeeName} - ${monthName}.pdf`;
 
 
+    // PDF Export triggers with asynchronous loaders
+    const handleGenerateTimesheetPdf = () => {
+        const filename = generateTimesheetFileName(
+            personnelState.employeeName,
+            getMonthNameId(timesheetState.month),
+            TEXTS.TIMESHEET
+        );
 
-  // PDF Export triggers with asynchronous loaders
-  const handleGenerateTimesheetPdf = () => {
-    const filename = `Timesheet_${personnelState.employeeName.replace(/\s+/g, '_')}_${getMonthNameId(timesheetState.month)}_${timesheetState.year}.pdf`;
-    
-    setIsGenerating(true);
-    setExportedFilename(filename);
+        setIsGenerating(true);
+        setExportedFilename(filename);
 
-    setTimeout(() => {
-      exportToPdf('timesheet-pdf-area', {
-        filename,
-        orientation: 'landscape',
-        margin: 4
-      })
-      .then(() => {
-        setIsGenerating(false);
-        setShowSuccessModal(true);
-      })
-      .catch((err) => {
-        setIsGenerating(false);
-        alert(`${TEXTS.ALERT_FAILED_DOWNLOAD_PDF}: ${err}`);
-      });
-    }, 350);
-  };
+        setTimeout(() => {
+            exportToPdf('timesheet-pdf-area', {
+                filename,
+                orientation: 'landscape',
+                margin: 4
+            })
+                .then(() => {
+                    setIsGenerating(false);
+                    setShowSuccessModal(true);
+                })
+                .catch((err) => {
+                    setIsGenerating(false);
+                    alert(`${TEXTS.ALERT_FAILED_DOWNLOAD_PDF}: ${err}`);
+                });
+        }, 350);
+    };
 
-  const handleGenerateOvertimePdf = () => {
-    const filename = `Overtime_${personnelState.employeeName.replace(/\s+/g, '_')}.pdf`;
-    
-    setIsGenerating(true);
-    setExportedFilename(filename);
+    const handleGenerateOvertimePdf = () => {
+        const filename = generateTimesheetFileName(
+            personnelState.employeeName,
+            getMonthNameId(timesheetState.month),
+            TEXTS.OVERTIME
+        );
 
-    setTimeout(() => {
-      exportToPdf('overtime-pdf-area', {
-        filename,
-        orientation: 'portrait',
-        margin: 10
-      })
-      .then(() => {
-        setIsGenerating(false);
-        setShowSuccessModal(true);
-      })
-      .catch((err) => {
-        setIsGenerating(false);
-        alert(`${TEXTS.ALERT_FAILED_DOWNLOAD_PDF}: ${err}`);
-      });
-    }, 350);
-  };
+        setIsGenerating(true);
+        setExportedFilename(filename);
 
-  return (
-    <div className={`min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/40 text-gray-800 transition-colors duration-300 font-sans flex flex-col ${isDragging ? 'select-none' : ''}`}>
-      
-      {/* NAVBAR */}
-      <header className="sticky top-0 z-40 glass-panel border-b border-gray-200/50 no-print">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          
-          {/* Logo Title */}
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-mandiri-blue to-cyan-500 flex items-center justify-center text-white shadow-md">
-              <Sparkles className="w-5 h-5 animate-pulse" />
-            </div>
-            <div>
-              <h1 className="text-sm font-bold leading-tight tracking-wide text-mandiri-blue">
-                Timesheet & Overtime Builder
-              </h1>
-            </div>
-          </div>
-        </div>
-      </header>
+        setTimeout(() => {
+            exportToPdf('overtime-pdf-area', {
+                filename,
+                orientation: 'portrait',
+                margin: 10
+            })
+                .then(() => {
+                    setIsGenerating(false);
+                    setShowSuccessModal(true);
+                })
+                .catch((err) => {
+                    setIsGenerating(false);
+                    alert(`${TEXTS.ALERT_FAILED_DOWNLOAD_PDF}: ${err}`);
+                });
+        }, 350);
+    };
 
-      {/* SPLIT LAYOUT VIEWER */}
-      <main 
-        ref={containerRef}
-        className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 flex flex-col lg:flex-row gap-0 min-h-0 relative"
-      >
-        
-        {/* LEFT COLUMN: Input Accordion Forms */}
-        <section 
-          className="flex flex-col no-print min-w-0 overflow-y-auto h-full pr-1 pb-6 space-y-4"
-          style={{ width: isLargeScreen ? `${leftWidth}%` : '100%', flexShrink: 0 }}
-        >
-          {/* Accordion 1: Timesheet Form */}
-          <div className="glass-panel rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800/80 overflow-hidden">
-            <button
-              onClick={() => setIsTimesheetFormOpen(!isTimesheetFormOpen)}
-              className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 transition-colors text-left"
+    return (
+        <div
+            className={`min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/40 text-gray-800 transition-colors duration-300 font-sans flex flex-col ${isDragging ? 'select-none' : ''}`}>
+
+            {/* NAVBAR */}
+            <header className="sticky top-0 z-40 glass-panel border-b border-gray-200/50 no-print">
+                <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+
+                    {/* Logo Title */}
+                    <div className="flex items-center gap-2">
+                        <div
+                            className="w-9 h-9 rounded-xl bg-gradient-to-tr from-mandiri-blue to-cyan-500 flex items-center justify-center text-white shadow-md">
+                            <Sparkles className="w-5 h-5 animate-pulse"/>
+                        </div>
+                        <div>
+                            <h1 className="text-sm font-bold leading-tight tracking-wide text-mandiri-blue">
+                                Timesheet & Overtime Builder
+                            </h1>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            {/* SPLIT LAYOUT VIEWER */}
+            <main
+                ref={containerRef}
+                className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 flex flex-col lg:flex-row gap-0 min-h-0 relative"
             >
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                <span>Timesheet Form</span>
-              </div>
-              <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isTimesheetFormOpen ? 'rotate-180' : ''}`} />
-            </button>
-            <div className={`grid transition-all duration-300 ease-in-out ${isTimesheetFormOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-              <div className="overflow-hidden p-4">
-                <TimesheetForm 
-                  state={timesheetState}
-                  setState={setTimesheetState}
-                  defaultActivities={defaultActivities}
-                  setDefaultActivities={setDefaultActivities}
-                  hourOfDefaultActivities={hourOfDefaultActivities}
-                  setHourOfDefaultActivities={setHourOfDefaultActivities}
-                  tickets={timesheetTickets}
-                  onClearTickets={() => {
-                    setTimesheetTickets([]);
-                    setMergedRowGroups([]);
-                  }}
-                  onTicketsParsed={handleTicketsParsed}
-                  onTicketsParseError={handleTicketsParseError}
-                  personnel={personnelState}
-                  setPersonnel={setPersonnelState}
-                />
-              </div>
-            </div>
-          </div>
 
-          {/* Accordion 2: Overtime Form */}
-          <div className="glass-panel rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800/80 overflow-hidden">
-            <button
-              onClick={() => setIsOvertimeFormOpen(!isOvertimeFormOpen)}
-              className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 transition-colors text-left"
-            >
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                <span>Overtime Form</span>
-              </div>
-              <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isOvertimeFormOpen ? 'rotate-180' : ''}`} />
-            </button>
-            <div className={`grid transition-all duration-300 ease-in-out ${isOvertimeFormOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-              <div className="overflow-hidden p-4">
-                <OvertimeForm 
-                  state={overtimeState}
-                  setState={setOvertimeState}
-                  personnel={personnelState}
-                  setPersonnel={setPersonnelState}
-                />
-              </div>
-            </div>
-          </div>
+                {/* LEFT COLUMN: Input Accordion Forms */}
+                <section
+                    className="flex flex-col no-print min-w-0 overflow-y-auto h-full pr-1 pb-6 space-y-4"
+                    style={{width: isLargeScreen ? `${leftWidth}%` : '100%', flexShrink: 0}}
+                >
+                    {/* Accordion 1: Timesheet Form */}
+                    <div
+                        className="glass-panel rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800/80 overflow-hidden">
+                        <button
+                            onClick={() => setIsTimesheetFormOpen(!isTimesheetFormOpen)}
+                            className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 transition-colors text-left"
+                        >
+                            <div className="flex items-center gap-2">
+                                <Calendar className="w-5 h-5"/>
+                                <span>Timesheet Form</span>
+                            </div>
+                            <ChevronDown
+                                className={`w-4 h-4 transition-transform duration-300 ${isTimesheetFormOpen ? 'rotate-180' : ''}`}/>
+                        </button>
+                        <div
+                            className={`grid transition-all duration-300 ease-in-out ${isTimesheetFormOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                            <div className="overflow-hidden p-4">
+                                <TimesheetForm
+                                    state={timesheetState}
+                                    setState={setTimesheetState}
+                                    defaultActivities={defaultActivities}
+                                    setDefaultActivities={setDefaultActivities}
+                                    hourOfDefaultActivities={hourOfDefaultActivities}
+                                    setHourOfDefaultActivities={setHourOfDefaultActivities}
+                                    tickets={timesheetTickets}
+                                    onClearTickets={() => {
+                                        setTimesheetTickets([]);
+                                        setMergedRowGroups([]);
+                                    }}
+                                    onTicketsParsed={handleTicketsParsed}
+                                    onTicketsParseError={handleTicketsParseError}
+                                    personnel={personnelState}
+                                    setPersonnel={setPersonnelState}
+                                    isAutoGenerate={isAutoGenerate}
+                                    setIsAutoGenerate={setIsAutoGenerate}
+                                    weekdayHour={weekdayHour}
+                                    setWeekdayHour={setWeekdayHour}
+                                    weekendHour={weekendHour}
+                                    setWeekendHour={setWeekendHour}
+                                />
+                            </div>
+                        </div>
+                    </div>
 
-          {/* Accordion 3: Import & Logo Assets */}
-          <div className="glass-panel rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800/80 overflow-hidden">
-            <button
-              onClick={() => setIsAssetsFormOpen(!isAssetsFormOpen)}
-              className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 transition-colors text-left"
-            >
-              <div className="flex items-center gap-2">
-                <Upload className="w-5 h-5" />
-                <span>Import Logo And Employee Signature (Optional)</span>
-              </div>
-              <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isAssetsFormOpen ? 'rotate-180' : ''}`} />
-            </button>
-            <div className={`grid transition-all duration-300 ease-in-out ${isAssetsFormOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-              <div className="overflow-hidden p-4 space-y-4">
-                {/* Logo File Selectors */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                      Company Logo (Override)
-                    </label>
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      onChange={e => handleLogoUpload(e, 'companyLogo')}
-                      className="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-mandiri-blue/10 file:text-mandiri-blue dark:file:bg-gray-800 dark:file:text-gray-300 hover:file:bg-mandiri-blue/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                      Vendor Logo (Override)
-                    </label>
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      onChange={e => handleLogoUpload(e, 'vendorLogo')}
-                      className="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-mandiri-blue/10 file:text-mandiri-blue dark:file:bg-gray-800 dark:file:text-gray-300 hover:file:bg-mandiri-blue/20"
-                    />
-                  </div>
+                    {/* Accordion 2: Overtime Form */}
+                    <div
+                        className="glass-panel rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800/80 overflow-hidden">
+                        <button
+                            onClick={() => setIsOvertimeFormOpen(!isOvertimeFormOpen)}
+                            className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 transition-colors text-left"
+                        >
+                            <div className="flex items-center gap-2">
+                                <FileText className="w-5 h-5"/>
+                                <span>Overtime Form</span>
+                            </div>
+                            <ChevronDown
+                                className={`w-4 h-4 transition-transform duration-300 ${isOvertimeFormOpen ? 'rotate-180' : ''}`}/>
+                        </button>
+                        <div
+                            className={`grid transition-all duration-300 ease-in-out ${isOvertimeFormOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                            <div className="overflow-hidden p-4">
+                                <OvertimeForm
+                                    state={overtimeState}
+                                    setState={setOvertimeState}
+                                    personnel={personnelState}
+                                    setPersonnel={setPersonnelState}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Accordion 3: Import & Logo Assets */}
+                    <div
+                        className="glass-panel rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800/80 overflow-hidden">
+                        <button
+                            onClick={() => setIsAssetsFormOpen(!isAssetsFormOpen)}
+                            className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 transition-colors text-left"
+                        >
+                            <div className="flex items-center gap-2">
+                                <Upload className="w-5 h-5"/>
+                                <span>Import Logo And Employee Signature (Optional)</span>
+                            </div>
+                            <ChevronDown
+                                className={`w-4 h-4 transition-transform duration-300 ${isAssetsFormOpen ? 'rotate-180' : ''}`}/>
+                        </button>
+                        <div
+                            className={`grid transition-all duration-300 ease-in-out ${isAssetsFormOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                            <div className="overflow-hidden p-4 space-y-4">
+                                {/* Logo File Selectors */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label
+                                            className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                                            Company Logo (Override)
+                                        </label>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={e => handleLogoUpload(e, 'companyLogo')}
+                                            className="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-mandiri-blue/10 file:text-mandiri-blue dark:file:bg-gray-800 dark:file:text-gray-300 hover:file:bg-mandiri-blue/20"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label
+                                            className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                                            Vendor Logo (Override)
+                                        </label>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={e => handleLogoUpload(e, 'vendorLogo')}
+                                            className="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-mandiri-blue/10 file:text-mandiri-blue dark:file:bg-gray-800 dark:file:text-gray-300 hover:file:bg-mandiri-blue/20"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Employee Signature File Upload */}
+                                <div className="pt-2 border-t border-gray-100 dark:border-gray-800/80">
+                                    <label
+                                        className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                                        Employee Signature Image
+                                    </label>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={e => handleLogoUpload(e, 'signatureEmployee')}
+                                        className="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-mandiri-blue/10 file:text-mandiri-blue dark:file:bg-gray-800 dark:file:text-gray-300 hover:file:bg-mandiri-blue/20"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* DRAGGABLE SPLITTER DIVIDER BAR */}
+                <div
+                    className="hidden lg:flex items-center justify-center w-6 cursor-col-resize select-none no-print group relative"
+                    onMouseDown={handleMouseDown}
+                    onDoubleClick={handleDoubleClick}
+                >
+                    <div
+                        className="w-[1.5px] h-full bg-slate-200 group-hover:bg-mandiri-blue group-active:bg-mandiri-blue transition-colors"></div>
+                    <div
+                        className="absolute top-1/2 -translate-y-1/2 w-4 h-8 bg-white border border-slate-200 shadow-md rounded-md flex flex-col items-center justify-center gap-0.5 group-hover:border-mandiri-blue group-active:border-mandiri-blue transition-colors">
+                        <span className="w-1.5 h-0.5 bg-slate-400 group-hover:bg-mandiri-blue rounded-full"></span>
+                        <span className="w-1.5 h-0.5 bg-slate-400 group-hover:bg-mandiri-blue rounded-full"></span>
+                        <span className="w-1.5 h-0.5 bg-slate-400 group-hover:bg-mandiri-blue rounded-full"></span>
+                    </div>
                 </div>
 
-                {/* Employee Signature File Upload */}
-                <div className="pt-2 border-t border-gray-100 dark:border-gray-800/80">
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    Employee Signature Image
-                  </label>
-                  <input 
-                    type="file" 
-                    accept="image/*"
-                    onChange={e => handleLogoUpload(e, 'signatureEmployee')}
-                    className="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-mandiri-blue/10 file:text-mandiri-blue dark:file:bg-gray-800 dark:file:text-gray-300 hover:file:bg-mandiri-blue/20"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+                {/* RIGHT COLUMN: Stacked Previews */}
+                <section
+                    className="flex flex-col min-w-0 h-full overflow-hidden"
+                    style={{flex: isLargeScreen ? '1 1 0%' : 'none'}}
+                >
+                    <div className="flex-1 overflow-y-auto space-y-6 pr-2 pb-6">
+                        <div>
+                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 select-none">Timesheet
+                                Preview</h4>
+                            <TimesheetPreview
+                                state={timesheetState}
+                                tickets={timesheetTickets}
+                                defaultActivities={defaultActivities}
+                                hourOfDefaultActivities={hourOfDefaultActivities}
+                                hoursOverrides={timesheetHoursOverrides}
+                                onCellEdit={handleCellEdit}
+                                onGeneratePdf={handleGenerateTimesheetPdf}
+                                companyLogoUrl={globalLogos.companyLogo}
+                                vendorLogoUrl={globalLogos.vendorLogo}
+                                signatureEmployeeUrl={globalLogos.signatureEmployee}
+                                personnel={personnelState}
+                                mergedRowGroups={mergedRowGroups}
+                                setMergedRowGroups={setMergedRowGroups}
+                                isAutoGenerate={isAutoGenerate}
+                                weekdayHour={weekdayHour}
+                                weekendHour={weekendHour}
+                            />
+                        </div>
 
-        {/* DRAGGABLE SPLITTER DIVIDER BAR */}
-        <div 
-          className="hidden lg:flex items-center justify-center w-6 cursor-col-resize select-none no-print group relative"
-          onMouseDown={handleMouseDown}
-          onDoubleClick={handleDoubleClick}
-        >
-          <div className="w-[1.5px] h-full bg-slate-200 group-hover:bg-mandiri-blue group-active:bg-mandiri-blue transition-colors"></div>
-          <div className="absolute top-1/2 -translate-y-1/2 w-4 h-8 bg-white border border-slate-200 shadow-md rounded-md flex flex-col items-center justify-center gap-0.5 group-hover:border-mandiri-blue group-active:border-mandiri-blue transition-colors">
-            <span className="w-1.5 h-0.5 bg-slate-400 group-hover:bg-mandiri-blue rounded-full"></span>
-            <span className="w-1.5 h-0.5 bg-slate-400 group-hover:bg-mandiri-blue rounded-full"></span>
-            <span className="w-1.5 h-0.5 bg-slate-400 group-hover:bg-mandiri-blue rounded-full"></span>
-          </div>
-        </div>
+                        <div>
+                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 select-none">Overtime
+                                Preview</h4>
+                            <OvertimePreview
+                                state={overtimeState}
+                                onGeneratePdf={handleGenerateOvertimePdf}
+                                companyLogoUrl={globalLogos.companyLogo}
+                                signatureEmployeeUrl={globalLogos.signatureEmployee}
+                                personnel={personnelState}
+                            />
+                        </div>
+                    </div>
+                </section>
 
-        {/* RIGHT COLUMN: Stacked Previews */}
-        <section 
-          className="flex flex-col min-w-0 h-full overflow-hidden"
-          style={{ flex: isLargeScreen ? '1 1 0%' : 'none' }}
-        >
-          <div className="flex-1 overflow-y-auto space-y-6 pr-2 pb-6">
-            <div>
-              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 select-none">Timesheet Preview</h4>
-              <TimesheetPreview 
-                state={timesheetState}
-                tickets={timesheetTickets}
-                defaultActivities={defaultActivities}
-                hourOfDefaultActivities={hourOfDefaultActivities}
-                hoursOverrides={timesheetHoursOverrides}
-                onCellEdit={handleCellEdit}
-                onGeneratePdf={handleGenerateTimesheetPdf}
-                companyLogoUrl={globalLogos.companyLogo}
-                vendorLogoUrl={globalLogos.vendorLogo}
-                signatureEmployeeUrl={globalLogos.signatureEmployee}
-                personnel={personnelState}
-                mergedRowGroups={mergedRowGroups}
-                setMergedRowGroups={setMergedRowGroups}
-              />
-            </div>
+            </main>
 
-            <div>
-              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 select-none">Overtime Preview</h4>
-              <OvertimePreview 
-                state={overtimeState}
-                onGeneratePdf={handleGenerateOvertimePdf}
-                companyLogoUrl={globalLogos.companyLogo}
-                signatureEmployeeUrl={globalLogos.signatureEmployee}
-                personnel={personnelState}
-              />
-            </div>
-          </div>
-        </section>
-
-      </main>
-
-      {/* ==========================================
+            {/* ==========================================
          MODAL POP-UPS (LOADING & CONFIRMATION)
          ========================================== */}
-      {isGenerating && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md transition-all duration-300">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 text-center animate-fade-in">
-            <div className="w-16 h-16 rounded-full bg-mandiri-blue/10 flex items-center justify-center text-mandiri-blue mb-4">
-              <Loader2 className="w-8 h-8 animate-spin" />
-            </div>
-            <h3 className="text-lg font-bold text-gray-800 mb-1">Generating Compliance PDF</h3>
-            <p className="text-xs text-gray-500 max-w-xs leading-relaxed">
-              We are compiling the document and scaling the Excel layouts. Please do not close the tab or reload.
-            </p>
-          </div>
+            {isGenerating && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md transition-all duration-300">
+                    <div
+                        className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 text-center animate-fade-in">
+                        <div
+                            className="w-16 h-16 rounded-full bg-mandiri-blue/10 flex items-center justify-center text-mandiri-blue mb-4">
+                            <Loader2 className="w-8 h-8 animate-spin"/>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800 mb-1">Generating Compliance PDF</h3>
+                        <p className="text-xs text-gray-500 max-w-xs leading-relaxed">
+                            We are compiling the document and scaling the Excel layouts. Please do not close the tab or
+                            reload.
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {showSuccessModal && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-all duration-300">
+                    <div
+                        className="bg-white rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 text-center animate-fade-in">
+                        <div
+                            className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mb-4 shadow-inner">
+                            <CheckCircle2 className="w-9 h-9"/>
+                        </div>
+                        <h3 className="text-lg font-extrabold text-gray-900 mb-1">PDF Export Complete</h3>
+                        <p className="text-xs text-gray-500 mb-4 max-w-xs leading-normal">
+                            Your file has been generated successfully.
+                        </p>
+
+                        <div
+                            className="w-full bg-slate-50 border border-slate-150 rounded-xl p-3 mb-5 text-left font-mono">
+                            <div
+                                className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Filename
+                            </div>
+                            <div className="text-xs font-semibold text-mandiri-blue truncate" title={exportedFilename}>
+                                {exportedFilename}
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => setShowSuccessModal(false)}
+                            className="w-full py-2.5 bg-mandiri-blue hover:bg-mandiri-blue/90 text-white rounded-xl text-xs font-bold transition-all shadow-md"
+                        >
+                            Okay, got it!
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {showImportSuccess && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-all duration-300">
+                    <div
+                        className="bg-white rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 text-center animate-fade-in">
+                        <div
+                            className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mb-4 shadow-inner">
+                            <CheckCircle2 className="w-9 h-9"/>
+                        </div>
+                        <h3 className="text-lg font-extrabold text-gray-900 mb-1">Import Successful</h3>
+                        <p className="text-xs text-gray-500 mb-4 max-w-xs leading-normal">
+                            Successfully parsed and loaded JIRA tickets.
+                        </p>
+
+                        <div className="w-full bg-slate-50 border border-slate-150 rounded-xl p-3 mb-5 text-left">
+                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Tickets
+                                Loaded
+                            </div>
+                            <div className="text-sm font-extrabold text-mandiri-blue">
+                                {importSuccessCount} Issues
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => setShowImportSuccess(false)}
+                            className="w-full py-2.5 bg-mandiri-blue hover:bg-mandiri-blue/90 text-white rounded-xl text-xs font-bold transition-all shadow-md"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {showImportError && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-all duration-300">
+                    <div
+                        className="bg-white rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 text-center animate-fade-in">
+                        <div
+                            className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center text-red-600 mb-4 shadow-inner">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2}
+                                 stroke="currentColor" className="w-8 h-8">
+                                <path strokeLinecap="round" strokeLinejoin="round"
+                                      d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                            </svg>
+                        </div>
+                        <h3 className="text-lg font-extrabold text-red-600 mb-1">Jira Import Failed</h3>
+                        <p className="text-xs text-gray-500 mb-4 max-w-xs leading-normal">
+                            An error occurred during file parsing.
+                        </p>
+
+                        <div
+                            className="w-full bg-red-50/55 border border-red-100 rounded-xl p-3 mb-5 text-left font-mono">
+                            <div className="text-[10px] text-red-500 font-bold uppercase tracking-wider mb-0.5">Error
+                                Message
+                            </div>
+                            <div className="text-xs font-semibold text-red-700 leading-normal">
+                                {importErrorMsg}
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => setShowImportError(false)}
+                            className="w-full py-2.5 bg-red-650 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-md"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
+
         </div>
-      )}
-
-      {showSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-all duration-300">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 text-center animate-fade-in">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mb-4 shadow-inner">
-              <CheckCircle2 className="w-9 h-9" />
-            </div>
-            <h3 className="text-lg font-extrabold text-gray-900 mb-1">PDF Export Complete</h3>
-            <p className="text-xs text-gray-500 mb-4 max-w-xs leading-normal">
-              Your file has been generated successfully.
-            </p>
-
-            <div className="w-full bg-slate-50 border border-slate-150 rounded-xl p-3 mb-5 text-left font-mono">
-              <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Filename</div>
-              <div className="text-xs font-semibold text-mandiri-blue truncate" title={exportedFilename}>
-                {exportedFilename}
-              </div>
-            </div>
-
-            <button 
-              onClick={() => setShowSuccessModal(false)}
-              className="w-full py-2.5 bg-mandiri-blue hover:bg-mandiri-blue/90 text-white rounded-xl text-xs font-bold transition-all shadow-md"
-            >
-              Okay, got it!
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showImportSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-all duration-300">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 text-center animate-fade-in">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mb-4 shadow-inner">
-              <CheckCircle2 className="w-9 h-9" />
-            </div>
-            <h3 className="text-lg font-extrabold text-gray-900 mb-1">Import Successful</h3>
-            <p className="text-xs text-gray-500 mb-4 max-w-xs leading-normal">
-              Successfully parsed and loaded JIRA tickets.
-            </p>
-
-            <div className="w-full bg-slate-50 border border-slate-150 rounded-xl p-3 mb-5 text-left">
-              <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Tickets Loaded</div>
-              <div className="text-sm font-extrabold text-mandiri-blue">
-                {importSuccessCount} Issues
-              </div>
-            </div>
-
-            <button 
-              onClick={() => setShowImportSuccess(false)}
-              className="w-full py-2.5 bg-mandiri-blue hover:bg-mandiri-blue/90 text-white rounded-xl text-xs font-bold transition-all shadow-md"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showImportError && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-all duration-300">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 text-center animate-fade-in">
-            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center text-red-600 mb-4 shadow-inner">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-extrabold text-red-600 mb-1">Jira Import Failed</h3>
-            <p className="text-xs text-gray-500 mb-4 max-w-xs leading-normal">
-              An error occurred during file parsing.
-            </p>
-
-            <div className="w-full bg-red-50/55 border border-red-100 rounded-xl p-3 mb-5 text-left font-mono">
-              <div className="text-[10px] text-red-500 font-bold uppercase tracking-wider mb-0.5">Error Message</div>
-              <div className="text-xs font-semibold text-red-700 leading-normal">
-                {importErrorMsg}
-              </div>
-            </div>
-
-            <button 
-              onClick={() => setShowImportError(false)}
-              className="w-full py-2.5 bg-red-650 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-md"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-
-    </div>
-  );
+    );
 }
 
 export default App;
