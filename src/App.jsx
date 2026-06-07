@@ -94,9 +94,9 @@ function App() {
   // ==========================================
   const [overtimeState, setOvertimeState] = useState({
     employeeName: "Daniel Sipangkar",
-    roleName: "DDL", // Default Mandiri Unit Kerja
-    supervisorName: "Hendra Prattha.",
-    supervisorRole: "Department Head",
+    roleName: "Software Developer",
+    supervisorName: "Supervisor Name",
+    supervisorRole: "Supervisor Role",
     formTitle: "SURAT KETERANGAN KERJA LEMBUR",
     formDescription: "Sehubungan dengan adanya pekerjaan yang tidak dapat ditangguhkan penyelesaiannya, maka dengan ini saya meminta kepada karyawan tersebut di bawah ini untuk melakukan kerja lembur pada hari dan waktu sebagaimana tercantum dalam daftar lembur di bawah ini:",
     overtimeList: [
@@ -252,11 +252,8 @@ function App() {
             </div>
             <div>
               <h1 className="text-sm font-bold leading-tight tracking-wide text-mandiri-blue">
-                Mandiri Builder
+                Timesheet Builder
               </h1>
-              <span className="text-[9px] text-gray-400 font-semibold uppercase tracking-wider block -mt-0.5">
-                Timesheet & Overtime Compliance
-              </span>
             </div>
           </div>
 

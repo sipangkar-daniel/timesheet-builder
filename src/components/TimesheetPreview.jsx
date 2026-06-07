@@ -1,6 +1,5 @@
 import React from 'react';
 import { getDaysInMonth, getDayAbbreviation, getMonthNameId } from '../utils/dateHelpers';
-import { MandiriLogo } from './Icons';
 import { FileDown, RefreshCw } from 'lucide-react';
 
 // Default compliance PNG logo assets imported
@@ -124,6 +123,52 @@ export const TimesheetPreview = ({
   // Number of content rows = default row (1) + JIRA ticket rows (tickets.length)
   const totalContentRows = 1 + tickets.length;
 
+  // ── CSS Grid Layout ───────────────────────────────────────────────────────
+  // Fixed pixel widths for the non-day columns (matching the original design)
+  const GW_NO  = 72;
+  const GW_ACT = 240;
+  const GW_SUM = 40;
+  const GW_CS  = 70;
+  const GW_SIG = 70;
+
+  // Column template: fixed px for static cols, equal 1fr for each day col.
+  // Using 1fr instead of a computed px value so the grid fills the container
+  // regardless of month length, and html2canvas scales it correctly.
+  const gridTemplateCols = `${GW_NO}px ${GW_ACT}px repeat(${totalDays}, 1fr) ${GW_SUM}px ${GW_CS}px ${GW_SIG}px`;
+
+  // CSS Grid column indices (1-based)
+  const GC_NO  = 1;
+  const GC_ACT = 2;
+  const gcDay  = (day) => 2 + day;        // day 1 → col 3, day 31 → col 33
+  const GC_SUM = 2 + totalDays + 1;
+  const GC_CS  = 2 + totalDays + 2;
+  const GC_SIG = 2 + totalDays + 3;
+
+  // CSS Grid row indices (1-based)
+  const GR_HDR1  = 1;
+  const GR_HDR2  = 2;
+  const GR_DEF   = 3;                           // default activities row
+  const grTicket = (i) => GR_DEF + 1 + i;      // ticket[0] → row 4, [1] → 5 …
+  const GR_TOTAL = GR_DEF + totalContentRows;   // row after the last content row
+
+  // Returns the minimal inline style needed to place a cell in the grid.
+  // The .sheet-cell class supplies borders, display:flex, alignment, etc.
+  const cellPos = (col, row, { colSpan, rowSpan } = {}) => ({
+    gridColumn: colSpan ? `${col} / span ${colSpan}` : String(col),
+    gridRow:    rowSpan ? `${row} / span ${rowSpan}` : String(row),
+  });
+
+  // Returns the solid background color for special-day columns as a direct hex
+  // string. Inline styles are captured reliably by html2canvas; Tailwind opacity
+  // shorthands (e.g. bg-holiday-purple/35) are not always preserved.
+  const getDayBg = (day) => {
+    const key = getDateKey(day);
+    if (holidayDays.includes(key)) return '#e8dbf2';
+    if (weekendDays.includes(key)) return '#d8eff5';
+    if (leaveDays.includes(key))   return '#fce8d7';
+    return null;
+  };
+
   return (
     <div className="flex flex-col h-full space-y-4">
       {/* Action panel */}
@@ -218,172 +263,209 @@ export const TimesheetPreview = ({
             </tbody>
           </table>
 
-          {/* Main Excel-like Table */}
-          <table className="w-full border-collapse border border-black text-center text-[9px] excel-table select-none" style={{ tableLayout: 'fixed' }}>
-            <thead>
-              {/* Row: Day Abbreviations */}
-              <tr className="bg-white font-bold border-b border-black">
-                <th className="border border-black p-1.5 text-center align-middle" rowSpan="2" style={{ width: '72px' }}>No</th>
-                <th className="border border-black p-1.5 text-center align-middle" rowSpan="2" style={{ width: '240px' }}>
-                  Project Name <br/> Activity Description
-                </th>
-                {daysArray.map(day => (
-                  <th 
-                    key={`abbrev-${day}`} 
-                    className={`border border-black px-0 py-1 text-[7px] font-bold text-center leading-none ${getColColorClass(day)}`}
-                  >
-                    {getDayAbbreviation(year, month, day)}
-                  </th>
-                ))}
-                <th className="border border-black p-1.5" rowSpan="2" style={{ width: '40px' }}>Sum (hrs)</th>
-                <th className="border border-black p-1.5" rowSpan="2" style={{ width: '70px' }}>Counter Sign Name</th>
-                <th className="border border-black p-1.5" rowSpan="2" style={{ width: '70px' }}>Signature</th>
-              </tr>
-              {/* Row: Day Numbers */}
-              <tr className="bg-white font-bold border-b border-black">
-                {daysArray.map(day => (
-                  <th 
-                    key={`num-${day}`} 
-                    className={`border border-black px-0 py-1 text-[8px] font-bold text-center leading-none ${getColColorClass(day)}`}
-                  >
-                    {day}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            
-            <tbody className="divide-y divide-black font-normal text-gray-850">
-              {/* Row 0: Default Work Row (First content row) */}
-              <tr className="hover:bg-gray-50/50">
-                <td className="border border-black p-1.5 text-center" style={{ width: '72px', minWidth: '72px', maxWidth: '72px' }}>1</td>
-                <td className="border border-black p-1.5 text-left max-w-xs break-words" style={{ width: '240px', minWidth: '240px', maxWidth: '240px' }}>
-                  {defaultActivities}
-                </td>
-                
-                {/* Day columns */}
-                {daysArray.map(day => {
-                  const isSpecial = isDaySpecial(day);
-                  
-                  if (isSpecial) {
-                    // Render vertically merged cell spanning all content rows
-                    return (
-                      <td 
-                        key={`merged-day-${day}`} 
-                        rowSpan={totalContentRows} 
-                        className={`border border-black p-0 align-middle ${getColColorClass(day)}`}
-                      >
-                        <div className="flex items-center justify-center py-4 w-full h-full">
-                          <span className="vertical-text">
-                            {getVerticalTextForDay(day)}
-                          </span>
+          {/* Main Timesheet – CSS Grid replaces the HTML <table>.
+              CSS Grid grid-column/grid-row spanning is correctly captured by
+              html2canvas (unlike table rowspan/colspan with border-collapse).
+              Vertical text uses character-by-character flex stacking because
+              html2canvas does not support CSS writing-mode. */}
+          <div
+            className="sheet-grid select-none"
+            style={{ display: 'grid', gridTemplateColumns: gridTemplateCols, width: '100%' }}
+          >
+
+            {/* ── HEADER ROW 1: column labels ─────────────────────────── */}
+
+            {/* "No" spans both header rows */}
+            <div className="sheet-cell font-bold" style={cellPos(GC_NO, GR_HDR1, { rowSpan: 2 })}>No</div>
+
+            {/* "Project Name / Activity Description" spans both header rows */}
+            <div className="sheet-cell font-bold text-center" style={{ ...cellPos(GC_ACT, GR_HDR1, { rowSpan: 2 }), lineHeight: '1.3' }}>
+              Project Name<br />Activity Description
+            </div>
+
+            {/* Day abbreviations */}
+            {daysArray.map(day => {
+              const bg = getDayBg(day);
+              return (
+                <div
+                  key={`abbrev-${day}`}
+                  className="sheet-cell font-bold"
+                  style={{ ...cellPos(gcDay(day), GR_HDR1), fontSize: '7px', ...(bg ? { backgroundColor: bg } : {}) }}
+                >
+                  {getDayAbbreviation(year, month, day)}
+                </div>
+              );
+            })}
+
+            {/* "Sum (hrs)" spans both header rows */}
+            <div className="sheet-cell font-bold text-center" style={{ ...cellPos(GC_SUM, GR_HDR1, { rowSpan: 2 }), fontSize: '8px', lineHeight: '1.3' }}>
+              Sum<br />(hrs)
+            </div>
+
+            {/* "Counter Sign Name" spans both header rows */}
+            <div className="sheet-cell font-bold text-center" style={{ ...cellPos(GC_CS, GR_HDR1, { rowSpan: 2 }), fontSize: '8px', lineHeight: '1.3' }}>
+              Counter Sign Name
+            </div>
+
+            {/* "Signature" spans both header rows */}
+            <div className="sheet-cell font-bold text-center" style={{ ...cellPos(GC_SIG, GR_HDR1, { rowSpan: 2 }), fontSize: '8px' }}>
+              Signature
+            </div>
+
+            {/* ── HEADER ROW 2: day numbers ─────────────────────────────── */}
+
+            {daysArray.map(day => {
+              const bg = getDayBg(day);
+              return (
+                <div
+                  key={`num-${day}`}
+                  className="sheet-cell font-bold"
+                  style={{ ...cellPos(gcDay(day), GR_HDR2), fontSize: '8px', ...(bg ? { backgroundColor: bg } : {}) }}
+                >
+                  {day}
+                </div>
+              );
+            })}
+
+            {/* ── CONTENT ROWS (unified: default row at index 0, tickets follow) ─── */}
+            {/* All rows are built from a single allRows array so they render
+                identically. Index 0 comes from defaultActivities; subsequent
+                entries come from timesheetTickets. */}
+
+            {(() => {
+              // Build unified rows – index 0 is the default/general task,
+              // followed by individual ticket rows.
+              const allRows = [
+                {
+                  key:      'default',
+                  label:    defaultActivities,
+                  getValue: (day) => getDefaultRowValue(day),
+                  getSum:   ()    => calculateDefaultRowSum(),
+                },
+                ...tickets.map(t => ({
+                  key:      t.ticketNumber,
+                  label:    `${t.ticketNumber} - ${t.title}`,
+                  getValue: (day) => getTicketRowValue(t.ticketNumber, day),
+                  getSum:   ()    => calculateTicketRowSum(t.ticketNumber),
+                })),
+              ];
+
+              return allRows.map((row, index) => {
+                const rowIdx = GR_DEF + index; // row 3 for index 0, row 4 for index 1, …
+                const isFirstRow = index === 0;
+
+                return (
+                  <React.Fragment key={row.key}>
+                    {/* No */}
+                    <div className="sheet-cell" style={cellPos(GC_NO, rowIdx)}>{index + 1}</div>
+
+                    {/* Activity / ticket label */}
+                    <div
+                      className="sheet-cell"
+                      style={{ ...cellPos(GC_ACT, rowIdx), justifyContent: 'flex-start', textAlign: 'left', padding: '2px 6px', fontSize: '8px', wordBreak: 'break-word' }}
+                    >
+                      {row.label}
+                    </div>
+
+                    {/* Day cells */}
+                    {daysArray.map(day => {
+                      const isSpecial = isDaySpecial(day);
+                      const bg        = getDayBg(day);
+
+                      if (isSpecial) {
+                        // Only the first row renders the spanning special-day cell.
+                        // Subsequent rows omit it – the span from row 0 covers them.
+                        if (!isFirstRow) return null;
+
+                        const label = getVerticalTextForDay(day);
+                        return (
+                          <div
+                            key={`special-${day}`}
+                            className="sheet-cell"
+                            style={{ ...cellPos(gcDay(day), GR_DEF, { rowSpan: totalContentRows }), flexDirection: 'column', ...(bg ? { backgroundColor: bg } : {}) }}
+                          >
+                            {label.split('').map((char, idx) => (
+                              <span key={idx} style={{ display: 'block', fontSize: '8px', fontWeight: 700, color: '#1e293b', lineHeight: '1.35' }}>
+                                {char === ' ' ? '\u00A0' : char}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      }
+
+                      // Editable numeric cell.
+                      // Bug fix: html2canvas reads the DOM "value" attribute, not the
+                      // React-controlled .value property. We add a hidden .pdf-value-overlay
+                      // span that becomes visible in pdf-render-mode so the correct number
+                      // appears in the exported PDF.
+                      const val = row.getValue(day);
+                      const displayVal = val === 0 ? '' : String(val);
+                      return (
+                        <div
+                          key={`${row.key}-day-${day}`}
+                          className="sheet-cell"
+                          style={{ ...cellPos(gcDay(day), rowIdx), padding: 0, position: 'relative' }}
+                        >
+                          <input
+                            type="number"
+                            min="0"
+                            max="24"
+                            value={displayVal}
+                            onChange={e => onCellEdit(row.key, day, e.target.value === '' ? 0 : Number(e.target.value))}
+                            className="excel-cell-input focus:bg-yellow-50 pdf-hide-input"
+                            style={{ width: '100%', minHeight: '22px', textAlign: 'center', border: 'none', background: 'transparent', fontSize: '9px', outline: 'none', padding: '4px 0', color: '#374151' }}
+                          />
+                          <span className="pdf-value-overlay">{displayVal}</span>
                         </div>
-                      </td>
-                    );
-                  }
+                      );
+                    })}
 
-                  return (
-                    <td key={`default-day-${day}`} className="border border-black p-0 text-center">
-                      <input 
-                        type="number"
-                        min="0"
-                        max="24"
-                        value={getDefaultRowValue(day) === 0 ? "" : getDefaultRowValue(day)}
-                        onChange={e => onCellEdit('default', day, e.target.value === "" ? 0 : Number(e.target.value))}
-                        className="w-full text-center py-1.5 excel-cell-input focus:bg-yellow-50 focus:outline-none border-0 text-[9px] bg-transparent text-gray-800"
-                      />
-                    </td>
-                  );
-                })}
+                    {/* Row sum */}
+                    <div className="sheet-cell" style={cellPos(GC_SUM, rowIdx)}>{row.getSum()}</div>
 
-                {/* Sum (hours) per default row */}
-                <td className="border border-black p-1.5 text-center bg-white">
-                  {calculateDefaultRowSum()}
-                </td>
+                    {/* Counter Sign + Signature: only first row renders the spanning cell */}
+                    {isFirstRow && (
+                      <>
+                        <div
+                          className="sheet-cell font-bold"
+                          style={{ ...cellPos(GC_CS, GR_DEF, { rowSpan: totalContentRows + 1 }), textAlign: 'center', padding: '4px 6px', wordBreak: 'break-word' }}
+                        >
+                          {counterSignName}
+                        </div>
+                        <div className="sheet-cell" style={cellPos(GC_SIG, GR_DEF, { rowSpan: totalContentRows + 1 })} />
+                      </>
+                    )}
+                  </React.Fragment>
+                );
+              });
+            })()}
 
-                {/* Counter Sign Name - Vertically Merged cell spanning all content rows + TOTAL row */}
-                <td 
-                  rowSpan={totalContentRows + 1} 
-                  className="border border-black p-2 font-bold align-middle bg-white text-center break-words min-w-[80px]"
+            {/* ── TOTAL ROW ────────────────────────────────────────────── */}
+
+            {/* "TOTAL" label spans the No + Activity columns */}
+            <div className="sheet-cell font-bold" style={cellPos(GC_NO, GR_TOTAL, { colSpan: 2 })}>TOTAL</div>
+
+            {daysArray.map(day => {
+              const s  = calculateDaySum(day);
+              const bg = getDayBg(day);
+              return (
+                <div
+                  key={`total-${day}`}
+                  className="sheet-cell font-bold"
+                  style={{ ...cellPos(gcDay(day), GR_TOTAL), ...(bg ? { backgroundColor: bg } : {}) }}
                 >
-                  {counterSignName}
-                </td>
+                  {s === 0 ? '' : s}
+                </div>
+              );
+            })}
 
-                {/* Signature - Vertically Merged cell spanning all content rows + TOTAL row */}
-                <td 
-                  rowSpan={totalContentRows + 1} 
-                  className="border border-black p-2 align-middle bg-white text-center"
-                >
-                  {/* Stamp space */}
-                </td>
-              </tr>
+            <div className="sheet-cell font-bold" style={cellPos(GC_SUM, GR_TOTAL)}>
+              {calculateGrandTotal()}
+            </div>
 
-              {/* Parsed JIRA Tickets Rows (Subsequent content rows) */}
-              {tickets.map((t, index) => (
-                <tr key={t.ticketNumber} className="hover:bg-gray-50/50">
-                  <td className="border border-black p-1.5 text-center" style={{ width: '72px', minWidth: '72px', maxWidth: '72px' }}>{index + 2}</td>
-                  <td className="border border-black p-1.5 text-left max-w-xs break-words" style={{ width: '240px', minWidth: '240px', maxWidth: '240px' }}>
-                    <span className="text-mandiri-blue">{t.ticketNumber}</span> - {t.title}
-                  </td>
+            {/* Counter Sign + Signature: covered by rowSpan from GR_DEF – omit */}
+          </div>
 
-                  {/* Day input cells */}
-                  {daysArray.map(day => {
-                    // Skip rendering this cell if it's a weekend/holiday/leave day, 
-                    // because it has already been vertically merged in the default row!
-                    if (isDaySpecial(day)) return null;
-
-                    return (
-                      <td key={`${t.ticketNumber}-day-${day}`} className="border border-black p-0 text-center">
-                        <input 
-                          type="number"
-                          min="0"
-                          max="24"
-                          value={getTicketRowValue(t.ticketNumber, day) === 0 ? "" : getTicketRowValue(t.ticketNumber, day)}
-                          onChange={e => onCellEdit(t.ticketNumber, day, e.target.value === "" ? 0 : Number(e.target.value))}
-                          className="w-full text-center py-1.5 excel-cell-input focus:bg-yellow-50 focus:outline-none border-0 text-[9px] bg-transparent text-gray-800"
-                        />
-                      </td>
-                    );
-                  })}
-
-                  {/* Sum (hours) per ticket row */}
-                  <td className="border border-black p-1.5 text-center bg-white">
-                    {calculateTicketRowSum(t.ticketNumber)}
-                  </td>
-
-                  {/* Counter Sign and Signature cells are skipped here (already covered by rowSpan) */}
-                </tr>
-              ))}
-
-              {/* Bottom Row: TOTAL */}
-              <tr className="bg-white border-t border-black text-gray-850">
-                <td className="border border-black p-2 text-center" colSpan="2" style={{ width: '312px', minWidth: '312px', maxWidth: '312px' }}>TOTAL</td>
-                
-                {/* Daily Vertical Sums */}
-                {daysArray.map(day => {
-                  const isSpecial = isDaySpecial(day);
-                  if (isSpecial) {
-                    // Since special day columns are merged vertically for content rows, 
-                    // we still render a normal cell here for the TOTAL row
-                    return (
-                      <td key={`total-special-${day}`} className={`border border-black p-2 text-center ${getColColorClass(day)}`}>
-                        {calculateDaySum(day) === 0 ? "" : calculateDaySum(day)}
-                      </td>
-                    );
-                  }
-                  
-                  return (
-                    <td key={`total-day-${day}`} className="border border-black p-1 text-center">
-                      {calculateDaySum(day)}
-                    </td>
-                  );
-                })}
- 
-                <td className="border border-black p-2 text-center bg-white">
-                  {calculateGrandTotal()}
-                </td>
-              </tr>
-            </tbody>
-          </table>
         </div>
 
       </div>

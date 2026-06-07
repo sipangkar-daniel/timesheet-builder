@@ -219,3 +219,74 @@
   display: inline-block;
   white-space: nowrap;
 }
+
+/* ==========================================
+   CSS GRID SHEET – html2canvas-compatible table
+   Replaces <table rowspan/colspan> to fix:
+     1. Double-border artefacts (uses right+bottom only, no border-collapse)
+     2. Merge-cell failures (grid-column/row span supported by html2canvas)
+     3. Vertical text (character-by-character flex stacking)
+   ========================================== */
+.sheet-grid {
+  /* Outer border: only top + left; each cell supplies its own right + bottom */
+  border-top:  1px solid #cbd5e1;
+  border-left: 1px solid #cbd5e1;
+}
+
+.sheet-cell {
+  border-right:  1px solid #cbd5e1;
+  border-bottom: 1px solid #cbd5e1;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  padding: 2px 3px;
+  min-height: 22px;
+  background-color: #ffffff;
+  color: #000000;
+}
+
+/* PDF render mode – solid black borders, no double lines */
+.pdf-render-mode .sheet-grid {
+  border-top-color:  #000000 !important;
+  border-left-color: #000000 !important;
+}
+
+.pdf-render-mode .sheet-cell {
+  border-right-color:  #000000 !important;
+  border-bottom-color: #000000 !important;
+  color: #000000 !important;
+}
+
+.pdf-render-mode .excel-cell-input {
+  color: #000000 !important;
+  background: transparent !important;
+  -webkit-appearance: none;
+}
+
+/* ── Input value overlay (Bug fix: html2canvas does not read React       ──
+   ── controlled input .value property, it reads the DOM attribute only). ──
+   ── In normal mode the overlay is hidden so only the real input shows.  ──
+   ── In pdf-render-mode the input is invisible and the overlay renders   ──
+   ── the numeric value as plain text for html2canvas to capture.         ── */
+.pdf-value-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: #000000;
+  pointer-events: none;
+  background: transparent;
+}
+
+.pdf-render-mode .pdf-value-overlay {
+  display: flex;
+}
+
+.pdf-render-mode .pdf-hide-input {
+  opacity: 0 !important;
+}
