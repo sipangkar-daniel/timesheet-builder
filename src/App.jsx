@@ -3,11 +3,11 @@ import { TimesheetForm } from './components/TimesheetForm';
 import { TimesheetPreview } from './components/TimesheetPreview';
 import { OvertimeForm } from './components/OvertimeForm';
 import { OvertimePreview } from './components/OvertimePreview';
-import { getWeekendsInMonth, getMonthNameId, getDaysInMonth } from './utils/dateHelpers';
+import { getWeekendsInMonth, getMonthNameId, getDaysInMonth, isWeekendDay } from './utils/dateHelpers';
 import { exportToPdf } from './utils/pdfExporter';
 import { Calendar, FileText, Sparkles, Loader2, CheckCircle2, ChevronDown, Upload } from 'lucide-react';
 import defaultSignature from './assets/images/default-signature.png';
-import {PLACEHOLDERS} from './utils/constants';
+import { PLACEHOLDERS, TEXTS } from './utils/constants';
 
 function App() {
   // Accordion open/close states
@@ -139,11 +139,19 @@ function App() {
 
       // Calculate total daily hours from Timesheet
       let defVal = timesheetTickets.length === 0 ? 0 : hourOfDefaultActivities;
-      const isSpecial = timesheetState.weekendDays.includes(dateKey) || 
-                        (timesheetState.holidayDays.includes(dateKey) && !timesheetState.workedHolidayDays?.includes(dateKey)) || 
-                        timesheetState.leaveDays.includes(dateKey);
       
-      if (isSpecial) defVal = 0;
+      const isWeekend = isWeekendDay(timesheetState.year, timesheetState.month, day);
+      const isWorkedHoliday = timesheetState.workedHolidayDays?.includes(dateKey);
+
+      if (isWeekend || isWorkedHoliday) {
+        defVal = 0;
+      } else {
+        const isSpecial = timesheetState.weekendDays.includes(dateKey) || 
+                          (timesheetState.holidayDays.includes(dateKey) && !timesheetState.workedHolidayDays?.includes(dateKey)) || 
+                          timesheetState.leaveDays.includes(dateKey);
+        if (isSpecial) defVal = 0;
+      }
+
       if (timesheetHoursOverrides['default'] && timesheetHoursOverrides['default'][day] !== undefined) {
         defVal = timesheetHoursOverrides['default'][day];
       }
@@ -159,8 +167,15 @@ function App() {
       });
 
       if (daySum > 0) {
-        const isWeekend = timesheetState.weekendDays.includes(dateKey);
+        const isWeekend = isWeekendDay(timesheetState.year, timesheetState.month, day);
         const isWorkedHoliday = timesheetState.workedHolidayDays?.includes(dateKey);
+        const isHoliday = timesheetState.holidayDays.includes(dateKey);
+        const isLeave = timesheetState.leaveDays.includes(dateKey);
+
+        // Regular holidays and leave days do not generate overtime
+        if (isLeave || (isHoliday && !isWorkedHoliday)) {
+          continue;
+        }
 
         if (isWeekend) {
           qualifying.push({
@@ -179,11 +194,11 @@ function App() {
             isHoliday: true
           });
         } else {
-          // Weekday
-          if (daySum > 9) {
+          // Regular Work Day (Weekday)
+          if (daySum > 8) {
             qualifying.push({
               date: dateKey,
-              hours: daySum - 9,
+              hours: daySum + 1 - 8,
               isWeekend: false,
               isWeekday: true,
               isHoliday: false
@@ -199,22 +214,29 @@ function App() {
       // Determine starting hour: Weekday is 17:00 (5 PM), Weekend/Holiday is 09:00 (9 AM)
       const startHour = q.isWeekday ? 17 : 9;
       
-      // If startHour + hours goes past 24:00 (midnight), cap at 24:00 and adjust the hours count + 1 hour istirahat
-      let displayHours = q.hours + 1;
+      // Calculate derived/default hours
+      let derivedHours = q.hours;
       if (startHour + q.hours > 24) {
-        displayHours = 24 - startHour;
+        derivedHours = 24 - startHour;
       }
 
       const formatTime = (h) => `${String(h).padStart(2, '0')}:00`;
-      const defaultTimeRange = `${formatTime(startHour)} - ${formatTime(startHour + displayHours)}`;
 
-      // Sync/re-derive the time range if the calculated hours changed
-      const hoursChanged = existing ? existing.overtimeHours !== displayHours : false;
+      // Sync/re-derive if the calculated derived hours changed
+      const hoursChanged = existing ? existing.derivedHours !== derivedHours : false;
 
-      let timeRange = defaultTimeRange;
+      let overtimeHours = derivedHours;
       if (existing && !hoursChanged) {
-        timeRange = existing.timeRange;
+        // Preserve manual override of overtimeHours if it exists and timesheet didn't change
+        overtimeHours = existing.overtimeHours !== undefined ? existing.overtimeHours : derivedHours;
       }
+
+      // Automatically recalculate time range based on overtimeHours
+      let displayHours = overtimeHours;
+      if (startHour + displayHours > 24) {
+        displayHours = 24 - startHour;
+      }
+      const timeRange = `${formatTime(startHour)} - ${formatTime(startHour + displayHours)}`;
 
       const taskText = overtimeState.isDescriptionSame
         ? (overtimeState.globalDescription || '')
@@ -223,7 +245,8 @@ function App() {
       return {
         id: existing ? existing.id : q.date,
         overtimeDate: q.date,
-        overtimeHours: displayHours,
+        overtimeHours: overtimeHours,
+        derivedHours: derivedHours,
         timeRange: timeRange,
         isWeekend: q.isWeekend,
         isWeekday: q.isWeekday,
@@ -252,9 +275,11 @@ function App() {
     timesheetState.weekendDays,
     timesheetState.holidayDays,
     timesheetState.workedHolidayDays,
+    timesheetState.leaveDays,
     timesheetHoursOverrides,
     timesheetTickets,
     hourOfDefaultActivities,
+    overtimeState.overtimeList,
     overtimeState.isDescriptionSame,
     overtimeState.globalDescription
   ]);
@@ -313,12 +338,7 @@ function App() {
     });
   };
 
-  const handleResetOverrides = () => {
-    if (window.confirm("Are you sure you want to reset all manual cell edits?")) {
-      setTimesheetHoursOverrides({});
-      setMergedRowGroups([]);
-    }
-  };
+
 
   // PDF Export triggers with asynchronous loaders
   const handleGenerateTimesheetPdf = () => {
@@ -339,7 +359,7 @@ function App() {
       })
       .catch((err) => {
         setIsGenerating(false);
-        alert("Failed to export Timesheet PDF: " + err);
+        alert(`${TEXTS.ALERT_FAILED_DOWNLOAD_PDF}: ${err}`);
       });
     }, 350);
   };
@@ -362,7 +382,7 @@ function App() {
       })
       .catch((err) => {
         setIsGenerating(false);
-        alert("Failed to export Overtime PDF: " + err);
+        alert(`${TEXTS.ALERT_FAILED_DOWNLOAD_PDF}: ${err}`);
       });
     }, 350);
   };
@@ -544,7 +564,6 @@ function App() {
                 hourOfDefaultActivities={hourOfDefaultActivities}
                 hoursOverrides={timesheetHoursOverrides}
                 onCellEdit={handleCellEdit}
-                onResetOverrides={handleResetOverrides}
                 onGeneratePdf={handleGenerateTimesheetPdf}
                 companyLogoUrl={globalLogos.companyLogo}
                 vendorLogoUrl={globalLogos.vendorLogo}

@@ -29,7 +29,24 @@ export const OvertimeForm = ({
     setState(prev => {
       const newList = prev.overtimeList.map(row => {
         if (row.id !== id) return row;
-        return { ...row, [field]: value };
+        
+        let updatedRow = { ...row, [field]: value };
+        
+        // If overtimeHours changed, automatically update the time range
+        if (field === 'overtimeHours') {
+          const hours = Number(value || 0);
+          const startHour = row.isWeekday ? 17 : 9;
+          
+          let displayHours = hours;
+          if (startHour + hours > 24) {
+            displayHours = 24 - startHour;
+          }
+          
+          const formatTime = (h) => `${String(h).padStart(2, '0')}:00`;
+          updatedRow.timeRange = `${formatTime(startHour)} - ${formatTime(startHour + displayHours)}`;
+        }
+        
+        return updatedRow;
       });
 
       return {
@@ -226,25 +243,27 @@ export const OvertimeForm = ({
                         />
                       </div>
 
-                      {/* Overtime Hours (Derived, Disabled) */}
+                      {/* Overtime Hours (Editable) */}
                       <div>
                         <label className="block text-[10px] font-bold text-gray-500 mb-1">Hours Count</label>
                         <input 
                           type="number"
+                          min="0"
+                          max="24"
                           value={row.overtimeHours}
-                          disabled
-                          className="w-full text-xs rounded-lg px-2.5 py-1.5 bg-gray-150/60 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed font-medium"
+                          onChange={e => handleRowChange(row.id, 'overtimeHours', e.target.value === '' ? 0 : Number(e.target.value))}
+                          className="w-full text-xs rounded-lg px-2.5 py-1.5 bg-white/70 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-mandiri-blue font-medium"
                         />
                       </div>
 
-                      {/* Time Range (Editable) */}
+                      {/* Time Range (Derived, Disabled) */}
                       <div>
                         <label className="block text-[10px] font-bold text-gray-500 mb-1">Time Range</label>
                         <input 
                           type="text"
                           value={row.timeRange}
-                          onChange={e => handleRowChange(row.id, 'timeRange', e.target.value)}
-                          className="w-full text-xs rounded-lg px-2.5 py-1.5 bg-white/70 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-mandiri-blue"
+                          disabled
+                          className="w-full text-xs rounded-lg px-2.5 py-1.5 bg-gray-150/60 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed font-medium"
                         />
                       </div>
                     </div>

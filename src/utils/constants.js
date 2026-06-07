@@ -6,7 +6,7 @@ export const PLACEHOLDERS = {
   DEPARTMENT_HEAD_NAME: "Hendra Prabha",
   DEFAULT_ACTIVITIES :"Grooming / Support Integration / Support UAT",
   DEFAULT_GLOBAL_DESCRIPTION: "Support Integration, UAT, BETA Project NBDS",
-  DEFAULT_BASELINE_HOURS : 0
+  DEFAULT_BASELINE_HOURS : 1
 };
 
 export const TEXTS = {
@@ -23,5 +23,7 @@ export const TEXTS = {
   SUPERVISOR_NAME: "Supervisor Name",
   NO: "No",
   EMPTY_TIMESHEET: "Belum ada data timesheet / ticket yang ditambahkan.",
-  EMPTY_OVERTIME: "Belum ada jadwal lembur yang ditambahkan."
+  EMPTY_OVERTIME: "Belum ada jadwal lembur yang ditambahkan.",
+  DOWNLOAD_PDF: "Unduh PDF",
+  ALERT_FAILED_DOWNLOAD_PDF: "Failed to Download PDF"
 };

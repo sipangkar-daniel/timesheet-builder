@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { formatIndonesianDate } from '../utils/dateHelpers';
-import { PreviewActionPanel, PreviewViewport, PreviewBrandingHeader, SignatureBox } from './PreviewShared';
+import { FloatingControls, PreviewViewport, PreviewBrandingHeader, SignatureBox } from './PreviewShared';
 import { PLACEHOLDERS, TEXTS } from '../utils/constants';
 
 export const OvertimePreview = ({ 
@@ -36,10 +36,10 @@ export const OvertimePreview = ({
   const unitKerja = roleName || PLACEHOLDERS.ROLE;
 
   return (
-    <div className="flex flex-col h-full space-y-4">
-      <PreviewActionPanel 
+    <div className="flex flex-col h-full min-h-0 relative">
+      <FloatingControls 
         onExportPdf={onGeneratePdf}
-        exportLabel="Export Overtime PDF"
+        exportLabel={TEXTS.DOWNLOAD_PDF}
         zoom={zoom}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}

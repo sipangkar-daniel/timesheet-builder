@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getDaysInMonth, getDayAbbreviation, getMonthNameId } from '../utils/dateHelpers';
-import { PreviewActionPanel, PreviewViewport, PreviewBrandingHeader } from './PreviewShared';
+import { getDaysInMonth, getDayAbbreviation, getMonthNameId, isWeekendDay } from '../utils/dateHelpers';
+import { FloatingControls, PreviewViewport, PreviewBrandingHeader } from './PreviewShared';
 import { PLACEHOLDERS, TEXTS } from '../utils/constants';
 
 export const TimesheetPreview = ({ 
@@ -10,7 +10,6 @@ export const TimesheetPreview = ({
   hourOfDefaultActivities,
   hoursOverrides, 
   onCellEdit, 
-  onResetOverrides,
   onGeneratePdf,
   companyLogoUrl,
   vendorLogoUrl,
@@ -23,6 +22,8 @@ export const TimesheetPreview = ({
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2.0));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.5));
   const handleZoomReset = () => setZoom(1.0);
+
+  const [manuallyEditingDays, setManuallyEditingDays] = useState({});
 
   const [selectedIndices, setSelectedIndices] = useState([]);
   const [isSelecting, setIsSelecting] = useState(false);
@@ -170,9 +171,26 @@ export const TimesheetPreview = ({
     return `${year}-${mStr}-${dStr}`;
   };
 
+  const hasManualOverrides = (day) => {
+    let sum = 0;
+    if (hoursOverrides['default'] && hoursOverrides['default'][day] !== undefined) {
+      sum += Number(hoursOverrides['default'][day] || 0);
+    }
+    tickets.forEach(t => {
+      const key = t.id || t.ticketNumber;
+      if (hoursOverrides[key] && hoursOverrides[key][day] !== undefined) {
+        sum += Number(hoursOverrides[key][day] || 0);
+      }
+    });
+    return sum > 0;
+  };
+
   // Check if a specific day is a Weekend, Holiday, or Leave day
   const isDaySpecial = (day) => {
     const key = getDateKey(day);
+    if (hasManualOverrides(day) || manuallyEditingDays[day]) {
+      return false;
+    }
     return weekendDays.includes(key) || 
            (holidayDays.includes(key) && !workedHolidayDays.includes(key)) || 
            leaveDays.includes(key);
@@ -194,6 +212,13 @@ export const TimesheetPreview = ({
     if (hoursOverrides['default'] && hoursOverrides['default'][day] !== undefined) {
       return hoursOverrides['default'][day];
     }
+
+    const isWeekend = isWeekendDay(year, month, day);
+    const isWorkedHoliday = workedHolidayDays.includes(key);
+    if (isWeekend || isWorkedHoliday) {
+      return 0;
+    }
+
     const isSpecial = weekendDays.includes(key) || 
                       (holidayDays.includes(key) && !workedHolidayDays.includes(key)) || 
                       leaveDays.includes(key);
@@ -297,6 +322,7 @@ export const TimesheetPreview = ({
   // string. Inline styles are captured reliably by html2canvas; Tailwind opacity
   // shorthands (e.g. bg-holiday-purple/35) are not always preserved.
   const getDayBg = (day) => {
+    if (!isDaySpecial(day)) return null;
     const key = getDateKey(day);
     if (workedHolidayDays.includes(key)) return null;
     if (holidayDays.includes(key)) return '#e8dbf2';
@@ -306,19 +332,16 @@ export const TimesheetPreview = ({
   };
 
   return (
-    <div className="flex flex-col h-full space-y-4">
-      <PreviewActionPanel 
-        onExportPdf={onGeneratePdf}
-        exportLabel="Export Timesheet PDF"
-        onResetEdits={onResetOverrides}
-        resetLabel="Reset Edits"
-        zoom={zoom}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onZoomReset={handleZoomReset}
-      />
-
+    <div className="flex flex-col h-full">
       <div className="flex-1 relative flex flex-col min-h-0">
+        <FloatingControls 
+          onExportPdf={onGeneratePdf}
+          exportLabel={TEXTS.DOWNLOAD_PDF}
+          zoom={zoom}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onZoomReset={handleZoomReset}
+        />
         <PreviewViewport>
           {/* Spreadsheet Frame (Target of PDF generation) */}
           <div 
@@ -573,7 +596,10 @@ export const TimesheetPreview = ({
                           return (
                             <div
                               key={`special-${day}`}
-                              className="sheet-cell"
+                              className="sheet-cell cursor-pointer hover:bg-slate-100/30 transition-colors"
+                              onClick={() => {
+                                setManuallyEditingDays(prev => ({ ...prev, [day]: true }));
+                              }}
                               style={{ ...cellPos(gcDay(day), GR_DEF, { rowSpan: totalContentRows }), flexDirection: 'column', ...(bg ? { backgroundColor: bg } : {}) }}
                             >
                               {label.split('').map((char, idx) => (

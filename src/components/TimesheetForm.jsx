@@ -63,6 +63,7 @@ export const TimesheetForm = ({
       }
     };
     reader.readAsText(file);
+    e.target.value = ""; // Reset file input value so onChange can trigger again for the same file
   };
 
   // Parse and load JSON
@@ -183,7 +184,10 @@ export const TimesheetForm = ({
               {tickets && tickets.length > 0 && (
                 <button
                   type="button"
-                  onClick={onClearTickets}
+                  onClick={() => {
+                    onClearTickets();
+                    setCsvFileName('');
+                  }}
                   className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 font-medium hover:underline flex items-center gap-1"
                 >
                   Clear Tickets
@@ -253,7 +257,8 @@ export const TimesheetForm = ({
                   month: m,
                   weekendDays: newWeekends,
                   holidayDays: [],
-                  leaveDays: []
+                  leaveDays: [],
+                  workedHolidayDays: []
                 }));
               }}
           />
