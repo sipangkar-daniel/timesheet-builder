@@ -7,6 +7,7 @@ export const MultiDatePicker = ({
   weekendDays = [], 
   holidayDays = [], 
   leaveDays = [], 
+  workedHolidayDays = [], 
   onChange 
 }) => {
   const [activeBrush, setActiveBrush] = useState('weekend'); // default brush is weekend
@@ -22,6 +23,7 @@ export const MultiDatePicker = ({
   // Determine classification of a day
   const getDayStatus = (day) => {
     const key = getDateKey(day);
+    if (workedHolidayDays.includes(key)) return 'workedHoliday';
     if (holidayDays.includes(key)) return 'holiday';
     if (weekendDays.includes(key)) return 'weekend';
     if (leaveDays.includes(key)) return 'leave';
@@ -36,6 +38,7 @@ export const MultiDatePicker = ({
     let nextWeekend = [...weekendDays].filter(d => d !== key);
     let nextHoliday = [...holidayDays].filter(d => d !== key);
     let nextLeave = [...leaveDays].filter(d => d !== key);
+    let nextWorkedHoliday = [...workedHolidayDays].filter(d => d !== key);
 
     // If day already has the active brush status, toggle it back to 'work'
     if (currentStatus !== activeBrush) {
@@ -45,6 +48,8 @@ export const MultiDatePicker = ({
         nextHoliday.push(key);
       } else if (activeBrush === 'leave') {
         nextLeave.push(key);
+      } else if (activeBrush === 'workedHoliday') {
+        nextWorkedHoliday.push(key);
       }
       // 'work' brush just removes it from the other lists (already filtered above)
     }
@@ -52,7 +57,8 @@ export const MultiDatePicker = ({
     onChange({
       weekendDays: nextWeekend,
       holidayDays: nextHoliday,
-      leaveDays: nextLeave
+      leaveDays: nextLeave,
+      workedHolidayDays: nextWorkedHoliday
     });
   };
 
@@ -118,6 +124,20 @@ export const MultiDatePicker = ({
           <span>Holiday</span>
         </label>
 
+        {/* Brush: Work at Holiday */}
+        <label className="pop-radio-label text-purple-600" style={{ color: '#7c3aed' }}>
+          <input 
+            type="radio" 
+            name="brushMode" 
+            value="workedHoliday" 
+            checked={activeBrush === 'workedHoliday'}
+            onChange={() => setActiveBrush('workedHoliday')}
+            className="pop-radio-input"
+          />
+          <span className="pop-radio-indicator"></span>
+          <span>Work at Holiday</span>
+        </label>
+
         {/* Brush: Leave */}
         <label className="pop-radio-label text-leave-orange" style={{ color: '#f79747' }}>
           <input 
@@ -156,6 +176,8 @@ export const MultiDatePicker = ({
             cellClass += "bg-weekend-blue/20 text-weekend-blue border border-weekend-blue/80 hover:bg-weekend-blue/30 shadow-sm";
           } else if (status === 'holiday') {
             cellClass += "bg-holiday-purple/20 text-holiday-purple border border-holiday-purple/80 hover:bg-holiday-purple/30 shadow-sm";
+          } else if (status === 'workedHoliday') {
+            cellClass += "bg-violet-100 text-violet-700 border border-violet-400 hover:bg-violet-200 shadow-sm";
           } else if (status === 'leave') {
             cellClass += "bg-leave-orange/20 text-leave-orange border border-leave-orange/80 hover:bg-leave-orange/30 shadow-sm";
           }

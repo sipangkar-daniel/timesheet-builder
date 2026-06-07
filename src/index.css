@@ -290,3 +290,18 @@
 .pdf-render-mode .pdf-hide-input {
   opacity: 0 !important;
 }
+
+/* ── Custom Backgrounds and Spin Reset ── */
+.pdf-bg-purple { background-color: #e8dbf2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.pdf-bg-blue { background-color: #d8eff5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.pdf-bg-orange { background-color: #fce8d7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+.excel-cell-input::-webkit-outer-spin-button,
+.excel-cell-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.excel-cell-input {
+  -moz-appearance: textfield;
+}
+

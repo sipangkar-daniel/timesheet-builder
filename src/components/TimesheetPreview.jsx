@@ -1,34 +1,36 @@
 import React from 'react';
 import { getDaysInMonth, getDayAbbreviation, getMonthNameId } from '../utils/dateHelpers';
-import { FileDown, RefreshCw } from 'lucide-react';
-
-// Default compliance PNG logo assets imported
-import defaultCompanyLogo from '../assets/images/company-logo.png';
-import defaultVendorLogo from '../assets/images/vendor-logo.png';
+import { PreviewActionPanel, PreviewViewport, PreviewBrandingHeader } from './PreviewShared';
+import { PLACEHOLDERS, TEXTS } from '../utils/constants';
 
 export const TimesheetPreview = ({ 
   state, 
   tickets, 
+  defaultActivities,
+  hourOfDefaultActivities,
   hoursOverrides, 
   onCellEdit, 
   onResetOverrides,
   onGeneratePdf,
   companyLogoUrl,
   vendorLogoUrl,
-  signatureEmployeeUrl
+  signatureEmployeeUrl,
+  personnel
 }) => {
   const { 
     employeeName, 
     roleName, 
+    departmentHeadName, 
+    supervisorName 
+  } = personnel;
+
+  const { 
     year, 
     month, 
-    departmentHeadName, 
-    counterSignName, 
-    defaultActivities, 
-    hourOfDefaultActivities, 
     weekendDays, 
     holidayDays, 
-    leaveDays 
+    leaveDays,
+    workedHolidayDays = []
   } = state;
 
   const totalDays = getDaysInMonth(year, month);
@@ -45,7 +47,9 @@ export const TimesheetPreview = ({
   // Check if a specific day is a Weekend, Holiday, or Leave day
   const isDaySpecial = (day) => {
     const key = getDateKey(day);
-    return weekendDays.includes(key) || holidayDays.includes(key) || leaveDays.includes(key);
+    return weekendDays.includes(key) || 
+           (holidayDays.includes(key) && !workedHolidayDays.includes(key)) || 
+           leaveDays.includes(key);
   };
 
   // Get vertical label text for merged special day columns
@@ -68,11 +72,14 @@ export const TimesheetPreview = ({
 
   // Get cell value for the default activities row
   const getDefaultRowValue = (day) => {
+    if (tickets.length === 0) return 0;
     const key = getDateKey(day);
     if (hoursOverrides['default'] && hoursOverrides['default'][day] !== undefined) {
       return hoursOverrides['default'][day];
     }
-    const isSpecial = weekendDays.includes(key) || holidayDays.includes(key) || leaveDays.includes(key);
+    const isSpecial = weekendDays.includes(key) || 
+                      (holidayDays.includes(key) && !workedHolidayDays.includes(key)) || 
+                      leaveDays.includes(key);
     return isSpecial ? 0 : hourOfDefaultActivities;
   };
 
@@ -106,7 +113,7 @@ export const TimesheetPreview = ({
   const calculateDaySum = (day) => {
     let total = Number(getDefaultRowValue(day) || 0);
     tickets.forEach(ticket => {
-      total += Number(getTicketRowValue(ticket.ticketNumber, day) || 0);
+      total += Number(getTicketRowValue(ticket.id || ticket.ticketNumber, day) || 0);
     });
     return total;
   };
@@ -115,13 +122,13 @@ export const TimesheetPreview = ({
   const calculateGrandTotal = () => {
     let total = calculateDefaultRowSum();
     tickets.forEach(ticket => {
-      total += calculateTicketRowSum(ticket.ticketNumber);
+      total += calculateTicketRowSum(ticket.id || ticket.ticketNumber);
     });
     return total;
   };
 
   // Number of content rows = default row (1) + JIRA ticket rows (tickets.length)
-  const totalContentRows = 1 + tickets.length;
+  const totalContentRows = tickets.length === 0 ? 1 : 1 + tickets.length;
 
   // ── CSS Grid Layout ───────────────────────────────────────────────────────
   // Fixed pixel widths for the non-day columns (matching the original design)
@@ -163,6 +170,7 @@ export const TimesheetPreview = ({
   // shorthands (e.g. bg-holiday-purple/35) are not always preserved.
   const getDayBg = (day) => {
     const key = getDateKey(day);
+    if (workedHolidayDays.includes(key)) return null;
     if (holidayDays.includes(key)) return '#e8dbf2';
     if (weekendDays.includes(key)) return '#d8eff5';
     if (leaveDays.includes(key))   return '#fce8d7';
@@ -171,97 +179,55 @@ export const TimesheetPreview = ({
 
   return (
     <div className="flex flex-col h-full space-y-4">
-      {/* Action panel */}
-      <div className="flex justify-between items-center bg-white/40 border border-gray-200 p-3 rounded-2xl backdrop-blur-md no-print">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-gray-500">Sheet Options:</span>
-          <button 
-            onClick={onResetOverrides}
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-55 flex items-center gap-1.5 transition-all shadow-sm"
-            title="Reset all edited spreadsheet cell hours"
-          >
-            <RefreshCw className="w-3.5 h-3.5" /> Reset Edits
-          </button>
-        </div>
-        <button 
-          onClick={onGeneratePdf}
-          className="text-xs font-bold bg-mandiri-blue text-white px-4 py-2 rounded-xl hover:bg-mandiri-blue/90 flex items-center gap-1.5 transition-all shadow-md hover:scale-105 active:scale-95"
-        >
-          <FileDown className="w-4 h-4" /> Export Timesheet PDF
-        </button>
-      </div>
+      <PreviewActionPanel 
+        onExportPdf={onGeneratePdf}
+        exportLabel="Export Timesheet PDF"
+        onResetEdits={onResetOverrides}
+        resetLabel="Reset Edits"
+      />
 
-      {/* Excel Sheet Scroll Container */}
-      <div className="flex-1 overflow-auto border border-gray-200 rounded-2xl bg-white p-6 shadow-xl relative min-w-0">
-        
+      <PreviewViewport>
         {/* Spreadsheet Frame (Target of PDF generation) */}
         <div id="timesheet-pdf-area" className="print-area font-sans text-black w-[1080px] mx-auto bg-white p-4">
-          
-          {/* Print Style Injector for pdf rendering */}
-          <style>{`
-            .pdf-bg-purple { background-color: #e8dbf2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .pdf-bg-blue { background-color: #d8eff5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .pdf-bg-orange { background-color: #fce8d7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .excel-cell-input::-webkit-outer-spin-button,
-            .excel-cell-input::-webkit-inner-spin-button {
-              -webkit-appearance: none;
-              margin: 0;
-            }
-            .excel-cell-input {
-              -moz-appearance: textfield;
-            }
-          `}</style>
+          <PreviewBrandingHeader 
+            type="timesheet"
+            companyLogoUrl={companyLogoUrl}
+            vendorLogoUrl={vendorLogoUrl}
+          />
 
-          {/* Logos side-by-side at top left */}
-          <div className="flex items-center gap-4 mb-3">
-            {[
-              { src: companyLogoUrl || defaultCompanyLogo, alt: "Company Logo" },
-              { src: vendorLogoUrl || defaultVendorLogo, alt: "Vendor Logo" }
-            ].map((logo, index) => (
-              <img
-                key={index}
-                src={logo.src}
-                alt={logo.alt}
-                className="h-7 max-w-[120px] object-contain"
-              />
-            ))}
+          {/* Metadata Block: CSS Grid replaces <table> to prevent html2canvas border-collapse bold lines */}
+          <div
+            className="sheet-grid text-center text-[9px] mb-4 select-none"
+            style={{ display: 'grid', gridTemplateColumns: '72px 240px 80px 80px 68px 1fr 140px', width: '100%' }}
+          >
+            {/* Header Row */}
+            <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.ROLE}</div>
+            <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.NAME}</div>
+            <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.SIGNATURE}</div>
+            <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.MONTH}</div>
+            <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.YEAR}</div>
+            <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.DEPARTMENT_HEAD}</div>
+            <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.SIGNATURE}</div>
+
+            {/* Value Row */}
+            <div className="sheet-cell text-center text-gray-800" style={{ minHeight: '34px', padding: '4px' }}>{roleName || PLACEHOLDERS.ROLE}</div>
+            <div className="sheet-cell text-center font-bold text-gray-800" style={{ minHeight: '34px', padding: '4px' }}>{employeeName || PLACEHOLDERS.EMPLOYEE_NAME}</div>
+            <div className="sheet-cell bg-white" style={{ minHeight: '34px', padding: '4px' }}>
+              <div className="flex items-center justify-center min-h-[30px]">
+                {signatureEmployeeUrl ? (
+                  <img src={signatureEmployeeUrl} alt="Employee Signature" className="max-h-6 object-contain" />
+                ) : null}
+              </div>
+            </div>
+            <div className="sheet-cell text-center text-gray-800" style={{ minHeight: '34px', padding: '4px' }}>{monthName}</div>
+            <div className="sheet-cell text-center text-gray-800" style={{ minHeight: '34px', padding: '4px' }}>{year}</div>
+            <div className="sheet-cell text-center text-gray-800" style={{ minHeight: '34px', padding: '4px' }}>{departmentHeadName || PLACEHOLDERS.DEPARTMENT_HEAD_NAME}</div>
+            <div className="sheet-cell bg-white" style={{ minHeight: '34px', padding: '4px' }}>
+              <div className="flex items-center justify-center min-h-[22px]">
+                {/* DepartementHead signature remains blank */}
+              </div>
+            </div>
           </div>
-
-          {/* Metadata Block: 7-Column Table */}
-          <table className="w-full border-collapse border border-black text-center text-[9px] mb-4 excel-table select-none" style={{ tableLayout: 'fixed' }}>
-            <thead>
-              <tr className="bg-white font-bold border-b border-black">
-                <th className="border border-black p-1" style={{ width: '72px' }}>Role</th>
-                <th className="border border-black p-1" style={{ width: '240px' }}>Name</th>
-                <th className="border border-black p-1" style={{ width: '80px' }}>Signature</th>
-                <th className="border border-black p-1" style={{ width: '80px' }}>Month</th>
-                <th className="border border-black p-1" style={{ width: '68px' }}>Year</th>
-                <th className="border border-black p-1">Department Head</th>
-                <th className="border border-black p-1" style={{ width: '140px' }}>Signature</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="bg-white font-normal text-gray-800">
-                <td className="border border-black p-1.5 text-center" style={{ width: '72px', minWidth: '72px', maxWidth: '72px' }}>{roleName}</td>
-                <td className="border border-black p-1.5 text-center font-bold" style={{ width: '240px', minWidth: '240px', maxWidth: '240px' }}>{employeeName}</td>
-                <td className="border border-black p-1.5 bg-white">
-                  <div className="flex items-center justify-center min-h-[30px]">
-                    {signatureEmployeeUrl ? (
-                      <img src={signatureEmployeeUrl} alt="Employee Signature" className="max-h-6 object-contain" />
-                    ) : null}
-                  </div>
-                </td>
-                <td className="border border-black p-1.5 text-center">{monthName}</td>
-                <td className="border border-black p-1.5 text-center">{year}</td>
-                <td className="border border-black p-1.5 text-center">{departmentHeadName}</td>
-                <td className="border border-black p-1.5 bg-white">
-                  <div className="flex items-center justify-center min-h-[22px]">
-                    {/* DepartementHead signature remains blank */}
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
 
           {/* Main Timesheet – CSS Grid replaces the HTML <table>.
               CSS Grid grid-column/grid-row spanning is correctly captured by
@@ -276,7 +242,7 @@ export const TimesheetPreview = ({
             {/* ── HEADER ROW 1: column labels ─────────────────────────── */}
 
             {/* "No" spans both header rows */}
-            <div className="sheet-cell font-bold" style={cellPos(GC_NO, GR_HDR1, { rowSpan: 2 })}>No</div>
+            <div className="sheet-cell font-bold" style={cellPos(GC_NO, GR_HDR1, { rowSpan: 2 })}>{TEXTS.NO}</div>
 
             {/* "Project Name / Activity Description" spans both header rows */}
             <div className="sheet-cell font-bold text-center" style={{ ...cellPos(GC_ACT, GR_HDR1, { rowSpan: 2 }), lineHeight: '1.3' }}>
@@ -302,14 +268,14 @@ export const TimesheetPreview = ({
               Sum<br />(hrs)
             </div>
 
-            {/* "Counter Sign Name" spans both header rows */}
+            {/* "Supervisor Name" spans both header rows */}
             <div className="sheet-cell font-bold text-center" style={{ ...cellPos(GC_CS, GR_HDR1, { rowSpan: 2 }), fontSize: '8px', lineHeight: '1.3' }}>
-              Counter Sign Name
+              {TEXTS.SUPERVISOR_NAME}
             </div>
 
             {/* "Signature" spans both header rows */}
             <div className="sheet-cell font-bold text-center" style={{ ...cellPos(GC_SIG, GR_HDR1, { rowSpan: 2 }), fontSize: '8px' }}>
-              Signature
+              {TEXTS.SIGNATURE}
             </div>
 
             {/* ── HEADER ROW 2: day numbers ─────────────────────────────── */}
@@ -332,10 +298,19 @@ export const TimesheetPreview = ({
                 identically. Index 0 comes from defaultActivities; subsequent
                 entries come from timesheetTickets. */}
 
+            {tickets.length === 0 && (
+              <div 
+                className="sheet-cell italic text-gray-400"
+                style={{ ...cellPos(GC_NO, GR_DEF, { colSpan: GC_SUM }), minHeight: '34px', padding: '8px', justifyContent: 'center' }}
+              >
+                {TEXTS.EMPTY_TIMESHEET}
+              </div>
+            )}
+
             {(() => {
               // Build unified rows – index 0 is the default/general task,
               // followed by individual ticket rows.
-              const allRows = [
+              const allRows = tickets.length === 0 ? [] : [
                 {
                   key:      'default',
                   label:    defaultActivities,
@@ -343,10 +318,10 @@ export const TimesheetPreview = ({
                   getSum:   ()    => calculateDefaultRowSum(),
                 },
                 ...tickets.map(t => ({
-                  key:      t.ticketNumber,
+                  key:      t.id || t.ticketNumber,
                   label:    `${t.ticketNumber} - ${t.title}`,
-                  getValue: (day) => getTicketRowValue(t.ticketNumber, day),
-                  getSum:   ()    => calculateTicketRowSum(t.ticketNumber),
+                  getValue: (day) => getTicketRowValue(t.id || t.ticketNumber, day),
+                  getSum:   ()    => calculateTicketRowSum(t.id || t.ticketNumber),
                 })),
               ];
 
@@ -422,28 +397,24 @@ export const TimesheetPreview = ({
 
                     {/* Row sum */}
                     <div className="sheet-cell" style={cellPos(GC_SUM, rowIdx)}>{row.getSum()}</div>
-
-                    {/* Counter Sign + Signature: only first row renders the spanning cell */}
-                    {isFirstRow && (
-                      <>
-                        <div
-                          className="sheet-cell font-bold"
-                          style={{ ...cellPos(GC_CS, GR_DEF, { rowSpan: totalContentRows + 1 }), textAlign: 'center', padding: '4px 6px', wordBreak: 'break-word' }}
-                        >
-                          {counterSignName}
-                        </div>
-                        <div className="sheet-cell" style={cellPos(GC_SIG, GR_DEF, { rowSpan: totalContentRows + 1 })} />
-                      </>
-                    )}
                   </React.Fragment>
                 );
               });
             })()}
 
+            {/* Counter Sign + Signature: spanning cells placed outside the loop */}
+            <div
+              className="sheet-cell font-bold"
+              style={{ ...cellPos(GC_CS, GR_DEF, { rowSpan: totalContentRows + 1 }), textAlign: 'center', padding: '4px 6px', wordBreak: 'break-word' }}
+            >
+              {supervisorName || PLACEHOLDERS.SUPERVISOR_NAME}
+            </div>
+            <div className="sheet-cell" style={cellPos(GC_SIG, GR_DEF, { rowSpan: totalContentRows + 1 })} />
+
             {/* ── TOTAL ROW ────────────────────────────────────────────── */}
 
             {/* "TOTAL" label spans the No + Activity columns */}
-            <div className="sheet-cell font-bold" style={cellPos(GC_NO, GR_TOTAL, { colSpan: 2 })}>TOTAL</div>
+            <div className="sheet-cell font-bold" style={cellPos(GC_NO, GR_TOTAL, { colSpan: 2 })}>{TEXTS.TOTAL}</div>
 
             {daysArray.map(day => {
               const s  = calculateDaySum(day);
@@ -468,7 +439,7 @@ export const TimesheetPreview = ({
 
         </div>
 
-      </div>
+      </PreviewViewport>
     </div>
   );
 };

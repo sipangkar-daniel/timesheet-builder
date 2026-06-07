@@ -4,13 +4,21 @@ import { MultiDatePicker } from './MultiDatePicker';
 import { MonthYearPicker } from './MonthYearPicker';
 import { Upload, FileText, RefreshCw, Calendar, FileJson } from 'lucide-react';
 import { getWeekendsInMonth } from '../utils/dateHelpers';
+import { PLACEHOLDERS } from '../utils/constants';
 
 export const TimesheetForm = ({ 
   state, 
   setState, 
+  defaultActivities,
+  setDefaultActivities,
+  hourOfDefaultActivities,
+  setHourOfDefaultActivities,
+  tickets,
+  onClearTickets,
   onTicketsParsed, 
-  onLogosUpdated,
-  onTicketsParseError
+  onTicketsParseError,
+  personnel,
+  setPersonnel
 }) => {
   const [jsonText, setJsonText] = useState('');
   const [showJsonInput, setShowJsonInput] = useState(false);
@@ -24,13 +32,21 @@ export const TimesheetForm = ({
     }));
   };
 
+  const handlePersonnelChange = (field, value) => {
+    setPersonnel(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   // Handle interactive calendar changes
-  const handleCalendarChange = ({ weekendDays, holidayDays, leaveDays }) => {
+  const handleCalendarChange = ({ weekendDays, holidayDays, leaveDays, workedHolidayDays }) => {
     setState(prev => ({
       ...prev,
       weekendDays,
       holidayDays,
-      leaveDays
+      leaveDays,
+      workedHolidayDays
     }));
   };
 
@@ -74,20 +90,9 @@ export const TimesheetForm = ({
     }
   };
 
-  // Handle image files for company/vendor logo
-  const handleLogoUpload = (e, type) => {
-    const file = e.target.files[0];
-    if (!file) {
-      onLogosUpdated(type, null);
-      return;
-    }
-    
-    const logoUrl = URL.createObjectURL(file);
-    onLogosUpdated(type, logoUrl);
-  };
 
   return (
-    <div className="space-y-6 max-h-[82vh] overflow-y-auto pr-2">
+    <div className="space-y-6">
       {/* Employee & Role Information */}
       <div className="glass-panel rounded-2xl p-5 shadow-lg space-y-4">
         <h3 className="text-base font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-100 dark:border-gray-800 pb-2 flex items-center gap-2">
@@ -101,19 +106,21 @@ export const TimesheetForm = ({
             </label>
             <input 
               type="text" 
-              value={state.employeeName}
-              onChange={e => handleInputChange('employeeName', e.target.value)}
+              value={personnel.employeeName}
+              placeholder={PLACEHOLDERS.EMPLOYEE_NAME}
+              onChange={e => handlePersonnelChange('employeeName', e.target.value)}
               className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none"
             />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-              Role/Title
+              Role
             </label>
             <input 
               type="text" 
-              value={state.roleName}
-              onChange={e => handleInputChange('roleName', e.target.value)}
+              value={personnel.roleName}
+              placeholder={PLACEHOLDERS.ROLE}
+              onChange={e => handlePersonnelChange('roleName', e.target.value)}
               className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none"
             />
           </div>
@@ -122,146 +129,53 @@ export const TimesheetForm = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-              Department Head
+              Department Head Name
             </label>
             <input 
               type="text" 
-              value={state.departmentHeadName}
-              onChange={e => handleInputChange('departmentHeadName', e.target.value)}
+              value={personnel.departmentHeadName}
+              placeholder={PLACEHOLDERS.DEPARTMENT_HEAD_NAME}
+              onChange={e => handlePersonnelChange('departmentHeadName', e.target.value)}
               className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none"
             />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-              Counter Sign Name
+              Supervisor Name
             </label>
             <input 
               type="text" 
-              value={state.counterSignName}
-              onChange={e => handleInputChange('counterSignName', e.target.value)}
+              value={personnel.supervisorName}
+              placeholder={PLACEHOLDERS.SUPERVISOR_NAME}
+              onChange={e => handlePersonnelChange('supervisorName', e.target.value)}
               className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none"
             />
           </div>
         </div>
 
-        {/* Employee Signature File Upload */}
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-            Employee Signature Image
-          </label>
-          <input 
-            type="file" 
-            accept="image/*"
-            onChange={e => handleLogoUpload(e, 'signatureEmployee')}
-            className="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-mandiri-blue/10 file:text-mandiri-blue dark:file:bg-gray-800 dark:file:text-gray-300 hover:file:bg-mandiri-blue/20"
-          />
-        </div>
-      </div>
-
-      {/* Date & Baseline Configuration */}
-      <div className="glass-panel rounded-2xl p-5 shadow-lg space-y-4">
-        <h3 className="text-base font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-100 dark:border-gray-800 pb-2 flex items-center gap-2">
-          <Calendar className="w-5 h-5" /> Period & Work Rules
-        </h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <MonthYearPicker 
-            year={state.year}
-            month={state.month}
-            onChange={(y, m) => {
-              const newWeekends = getWeekendsInMonth(y, m);
-              setState(prev => ({
-                ...prev,
-                year: y,
-                month: m,
-                weekendDays: newWeekends,
-                holidayDays: [],
-                leaveDays: []
-              }));
-            }}
-          />
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-              Baseline Hours (per business day)
-            </label>
-            <input 
-              type="number" 
-              min="0"
-              max="24"
-              value={state.hourOfDefaultActivities}
-              onChange={e => handleInputChange('hourOfDefaultActivities', Number(e.target.value))}
-              className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-            Default Activity Description
-          </label>
-          <textarea 
-            rows="2"
-            value={state.defaultActivities}
-            onChange={e => handleInputChange('defaultActivities', e.target.value)}
-            className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none resize-none"
-          />
-        </div>
-
-        {/* Multi-DatePicker Calendar View */}
-        <MultiDatePicker
-          year={state.year}
-          month={state.month}
-          weekendDays={state.weekendDays}
-          holidayDays={state.holidayDays}
-          leaveDays={state.leaveDays}
-          onChange={handleCalendarChange}
-        />
-      </div>
-
-      {/* CSV / JSON Import & Logo Uploads */}
-      <div className="glass-panel rounded-2xl p-5 shadow-lg space-y-4">
-        <h3 className="text-base font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-100 dark:border-gray-800 pb-2 flex items-center gap-2">
-          <Upload className="w-5 h-5" /> Import & Logo Assets
-        </h3>
-
-        {/* Logo File Selectors */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-              Company Logo (Override)
-            </label>
-            <input 
-              type="file" 
-              accept="image/*"
-              onChange={e => handleLogoUpload(e, 'companyLogo')}
-              className="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-mandiri-blue/10 file:text-mandiri-blue dark:file:bg-gray-800 dark:file:text-gray-300 hover:file:bg-mandiri-blue/20"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-              Vendor Logo (Override)
-            </label>
-            <input 
-              type="file" 
-              accept="image/*"
-              onChange={e => handleLogoUpload(e, 'vendorLogo')}
-              className="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-mandiri-blue/10 file:text-mandiri-blue dark:file:bg-gray-800 dark:file:text-gray-300 hover:file:bg-mandiri-blue/20"
-            />
-          </div>
-        </div>
-
-        {/* CSV Import */}
-        <div className="pt-2 border-t border-gray-100 dark:border-gray-800/80 space-y-3">
+        {/* CSV Import (Swapped from Bottom) */}
+        <div className="pt-2 border-t border-gray-150/60 dark:border-gray-800/80 space-y-3">
           <div className="flex justify-between items-center">
             <span className="text-xs font-bold text-gray-600 dark:text-gray-300">JIRA CSV Export / JSON Issues</span>
-            <button 
-              type="button"
-              onClick={() => setShowJsonInput(!showJsonInput)}
-              className="text-xs text-mandiri-blue dark:text-cyan-400 font-medium hover:underline flex items-center gap-1"
-            >
-              {showJsonInput ? <FileText className="w-3.5 h-3.5" /> : <FileJson className="w-3.5 h-3.5" />}
-              {showJsonInput ? "Switch to CSV upload" : "Paste JSON instead"}
-            </button>
+            <div className="flex items-center gap-3">
+              {tickets && tickets.length > 0 && (
+                <button
+                  type="button"
+                  onClick={onClearTickets}
+                  className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 font-medium hover:underline flex items-center gap-1"
+                >
+                  Clear Tickets
+                </button>
+              )}
+              <button 
+                type="button"
+                onClick={() => setShowJsonInput(!showJsonInput)}
+                className="text-xs text-mandiri-blue dark:text-cyan-400 font-medium hover:underline flex items-center gap-1"
+              >
+                {showJsonInput ? <FileText className="w-3.5 h-3.5" /> : <FileJson className="w-3.5 h-3.5" />}
+                {showJsonInput ? "Switch to CSV upload" : "Paste JSON instead"}
+              </button>
+            </div>
           </div>
 
           {!showJsonInput ? (
@@ -298,6 +212,69 @@ export const TimesheetForm = ({
           )}
         </div>
       </div>
+
+      {/* Date & Baseline Configuration */}
+      <div className="glass-panel rounded-2xl p-5 shadow-lg space-y-4">
+        <h3 className="text-base font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-100 dark:border-gray-800 pb-2 flex items-center gap-2">
+          <Calendar className="w-5 h-5" /> Period & Work Rules
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <MonthYearPicker 
+            year={state.year}
+            month={state.month}
+            onChange={(y, m) => {
+              const newWeekends = getWeekendsInMonth(y, m);
+              setState(prev => ({
+                ...prev,
+                year: y,
+                month: m,
+                weekendDays: newWeekends,
+                holidayDays: [],
+                leaveDays: []
+              }));
+            }}
+          />
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+              Baseline Hours (per business day)
+            </label>
+            <input 
+              type="number" 
+              min="0"
+              max="24"
+              value={hourOfDefaultActivities}
+              onChange={e => setHourOfDefaultActivities(Number(e.target.value))}
+              className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+            Default Activity Description
+          </label>
+          <textarea 
+            rows="2"
+            value={defaultActivities}
+            onChange={e => setDefaultActivities(e.target.value)}
+            className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none resize-none"
+          />
+        </div>
+
+        {/* Multi-DatePicker Calendar View */}
+        <MultiDatePicker
+          year={state.year}
+          month={state.month}
+          weekendDays={state.weekendDays}
+          holidayDays={state.holidayDays}
+          leaveDays={state.leaveDays}
+          workedHolidayDays={state.workedHolidayDays}
+          onChange={handleCalendarChange}
+        />
+      </div>
+
+
     </div>
   );
 };

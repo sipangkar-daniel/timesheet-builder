@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Calendar, FileText, UserCheck, Upload } from 'lucide-react';
-import { formatDateString } from '../utils/dateHelpers';
+import { Calendar, FileText, UserCheck, ChevronDown } from 'lucide-react';
+import { PLACEHOLDERS } from '../utils/constants';
 
 export const OvertimeForm = ({ 
   state, 
-  setState, 
-  onLogoUpdated 
+  setState,
+  personnel,
+  setPersonnel
 }) => {
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
 
   const handleInputChange = (field, value) => {
     setState(prev => ({
@@ -15,31 +17,10 @@ export const OvertimeForm = ({
     }));
   };
 
-  // Add a new row to the overtime array
-  const handleAddRow = () => {
-    const todayStr = formatDateString(new Date());
-    const newRow = {
-      id: Date.now().toString(),
-      overtimeDate: todayStr,
-      overtimeHours: 4,
-      isWeekend: false,
-      isWeekday: true,
-      isHoliday: false,
-      timeRange: '17:00 - 21:00',
-      task: 'Support deployment and hotfix monitoring'
-    };
-
-    setState(prev => ({
+  const handlePersonnelChange = (field, value) => {
+    setPersonnel(prev => ({
       ...prev,
-      overtimeList: [...prev.overtimeList, newRow]
-    }));
-  };
-
-  // Delete an overtime row
-  const handleDeleteRow = (id) => {
-    setState(prev => ({
-      ...prev,
-      overtimeList: prev.overtimeList.filter(row => row.id !== id)
+      [field]: value
     }));
   };
 
@@ -48,25 +29,7 @@ export const OvertimeForm = ({
     setState(prev => {
       const newList = prev.overtimeList.map(row => {
         if (row.id !== id) return row;
-
-        const updated = { ...row, [field]: value };
-
-        // Automation rules:
-        if (field === 'isWeekend' && value === true) {
-          updated.isWeekday = false;
-          updated.isHoliday = false;
-          updated.timeRange = '09:00 - 16:00';
-        } else if (field === 'isHoliday' && value === true) {
-          updated.isWeekday = false;
-          updated.isWeekend = false;
-          updated.timeRange = '09:00 - 16:00';
-        } else if (field === 'isWeekday' && value === true) {
-          updated.isWeekend = false;
-          updated.isHoliday = false;
-          updated.timeRange = '17:00 - 21:00';
-        }
-
-        return updated;
+        return { ...row, [field]: value };
       });
 
       return {
@@ -76,17 +39,10 @@ export const OvertimeForm = ({
     });
   };
 
-  // Handle logo files for overtime company logo
-  const handleLogoUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    const logoUrl = URL.createObjectURL(file);
-    onLogoUpdated('overtimeCompany', logoUrl);
-  };
+
 
   return (
-    <div className="space-y-6 max-h-[82vh] overflow-y-auto pr-2">
+    <div className="space-y-6">
       {/* Employee & Supervisor Information */}
       <div className="glass-panel rounded-2xl p-5 shadow-lg space-y-4">
         <h3 className="text-base font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-100 dark:border-gray-800 pb-2 flex items-center gap-2">
@@ -100,8 +56,9 @@ export const OvertimeForm = ({
             </label>
             <input 
               type="text" 
-              value={state.employeeName}
-              onChange={e => handleInputChange('employeeName', e.target.value)}
+              value={personnel.employeeName}
+              placeholder={PLACEHOLDERS.EMPLOYEE_NAME}
+              onChange={e => handlePersonnelChange('employeeName', e.target.value)}
               className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none"
             />
           </div>
@@ -111,8 +68,9 @@ export const OvertimeForm = ({
             </label>
             <input 
               type="text" 
-              value={state.roleName}
-              onChange={e => handleInputChange('roleName', e.target.value)}
+              value={personnel.roleName}
+              placeholder={PLACEHOLDERS.ROLE}
+              onChange={e => handlePersonnelChange('roleName', e.target.value)}
               className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none"
             />
           </div>
@@ -125,8 +83,9 @@ export const OvertimeForm = ({
             </label>
             <input 
               type="text" 
-              value={state.supervisorName}
-              onChange={e => handleInputChange('supervisorName', e.target.value)}
+              value={personnel.supervisorName}
+              placeholder={PLACEHOLDERS.SUPERVISOR_NAME}
+              onChange={e => handlePersonnelChange('supervisorName', e.target.value)}
               className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none"
             />
           </div>
@@ -136,8 +95,9 @@ export const OvertimeForm = ({
             </label>
             <input 
               type="text" 
-              value={state.supervisorRole}
-              onChange={e => handleInputChange('supervisorRole', e.target.value)}
+              value={personnel.supervisorRole}
+              placeholder={PLACEHOLDERS.SUPERVISOR_ROLE}
+              onChange={e => handlePersonnelChange('supervisorRole', e.target.value)}
               className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none"
             />
           </div>
@@ -174,144 +134,140 @@ export const OvertimeForm = ({
           />
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-            Company Logo Override
-          </label>
-          <input 
-            type="file" 
-            accept="image/*"
-            onChange={handleLogoUpload}
-            className="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-mandiri-blue/10 file:text-mandiri-blue dark:file:bg-gray-800 dark:file:text-gray-300 hover:file:bg-mandiri-blue/20"
-          />
-        </div>
+
       </div>
 
-      {/* Dynamic Overtime List Builder */}
-      <div className="glass-panel rounded-2xl p-5 shadow-lg space-y-4">
-        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-800 pb-2">
-          <h3 className="text-base font-bold text-mandiri-blue dark:text-gray-200 flex items-center gap-2">
-            <Calendar className="w-5 h-5" /> Overtime Schedule
-          </h3>
-          <button 
-            type="button"
-            onClick={handleAddRow}
-            className="text-xs font-semibold bg-mandiri-blue text-white dark:bg-mandiri-yellow dark:text-gray-900 px-3 py-1.5 rounded-lg hover:scale-105 active:scale-95 transition-all shadow-md flex items-center gap-1"
-          >
-            <Plus className="w-3.5 h-3.5" /> Add Overtime Row
-          </button>
-        </div>
+      {/* Derived Overtime List Builder (Collapsible Accordion) */}
+      <div className="glass-panel rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-800">
+        <button
+          type="button"
+          onClick={() => setIsScheduleOpen(!isScheduleOpen)}
+          className="w-full flex justify-between items-center p-5 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-100 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 transition-colors text-left"
+        >
+          <div className="flex items-center gap-2">
+            <Calendar className="w-5 h-5" />
+            <span>Overtime Details ({state.overtimeList?.length || 0} Days)</span>
+          </div>
+          <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isScheduleOpen ? 'rotate-180' : ''}`} />
+        </button>
 
-        {/* Row List */}
-        <div className="space-y-4">
-          {state.overtimeList.length === 0 ? (
-            <p className="text-center text-xs py-6 text-gray-400">No overtime scheduled yet. Click Add Row above.</p>
-          ) : (
-            state.overtimeList.map((row, idx) => (
-              <div 
-                key={row.id} 
-                className="p-3 rounded-xl border border-gray-200 dark:border-gray-800/80 bg-white/40 dark:bg-gray-900/20 space-y-3 relative group"
-              >
-                {/* Delete button */}
-                <button 
+        <div className={`grid transition-all duration-300 ease-in-out ${isScheduleOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+          <div className="overflow-hidden p-5 space-y-4">
+            
+            {/* Job Description Mode Selectors */}
+            <div className="space-y-2 select-none">
+              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                Job Description Mode
+              </label>
+              <div className="flex items-center gap-3">
+                <button
                   type="button"
-                  onClick={() => handleDeleteRow(row.id)}
-                  className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors p-1"
-                  title="Remove this row"
+                  onClick={() => handleInputChange('isDescriptionSame', !state.isDescriptionSame)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    state.isDescriptionSame ? 'bg-mandiri-blue' : 'bg-gray-300 dark:bg-gray-700'
+                  }`}
+                  role="switch"
+                  aria-checked={state.isDescriptionSame}
                 >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-
-                <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
-                  <span>Row #{idx + 1}</span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {/* Date */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 mb-1">Date</label>
-                    <input 
-                      type="date"
-                      value={row.overtimeDate}
-                      onChange={e => handleRowChange(row.id, 'overtimeDate', e.target.value)}
-                      className="w-full text-xs rounded-lg px-2.5 py-1.5 bg-white/70 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-white focus:outline-none"
-                    />
-                  </div>
-
-                  {/* Overtime Hours */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 mb-1">Hours Count</label>
-                    <input 
-                      type="number"
-                      min="1"
-                      max="24"
-                      value={row.overtimeHours}
-                      onChange={e => handleRowChange(row.id, 'overtimeHours', Number(e.target.value))}
-                      className="w-full text-xs rounded-lg px-2.5 py-1.5 bg-white/70 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-white focus:outline-none"
-                    />
-                  </div>
-
-                  {/* Time Range */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 mb-1">Time Range (Waktu Lembur)</label>
-                    <input 
-                      type="text"
-                      value={row.timeRange}
-                      onChange={e => handleRowChange(row.id, 'timeRange', e.target.value)}
-                      className="w-full text-xs rounded-lg px-2.5 py-1.5 bg-white/70 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-white focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Day Toggles */}
-                <div className="flex flex-wrap gap-4 pt-1">
-                  <span className="text-[10px] font-bold text-gray-400 self-center">Day Classification:</span>
-                  <label className="inline-flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
-                    <input 
-                      type="radio" 
-                      name={`day-type-${row.id}`}
-                      checked={row.isWeekday}
-                      onChange={() => handleRowChange(row.id, 'isWeekday', true)}
-                      className="text-mandiri-blue focus:ring-0"
-                    />
-                    <span>Weekday (17:00-21:00)</span>
-                  </label>
-                  <label className="inline-flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
-                    <input 
-                      type="radio" 
-                      name={`day-type-${row.id}`}
-                      checked={row.isWeekend}
-                      onChange={() => handleRowChange(row.id, 'isWeekend', true)}
-                      className="text-mandiri-blue focus:ring-0"
-                    />
-                    <span>Weekend (9:00-16:00)</span>
-                  </label>
-                  <label className="inline-flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
-                    <input 
-                      type="radio" 
-                      name={`day-type-${row.id}`}
-                      checked={row.isHoliday}
-                      onChange={() => handleRowChange(row.id, 'isHoliday', true)}
-                      className="text-mandiri-blue focus:ring-0"
-                    />
-                    <span>Holiday (9:00-16:00)</span>
-                  </label>
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-500 mb-1">Task / Job description</label>
-                  <input 
-                    type="text"
-                    value={row.task}
-                    onChange={e => handleRowChange(row.id, 'task', e.target.value)}
-                    className="w-full text-xs rounded-lg px-2.5 py-1.5 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:outline-none"
-                    placeholder="Describe tasks done..."
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      state.isDescriptionSame ? 'translate-x-5' : 'translate-x-0'
+                    }`}
                   />
-                </div>
+                </button>
+                <span className="text-xs font-medium text-gray-750 dark:text-gray-300">
+                  {state.isDescriptionSame ? 'Gunakan detail yang sama untuk semua overtime' : 'Berbeda per Hari'}
+                </span>
               </div>
-            ))
-          )}
+            </div>
+
+            {/* If same: Show Global Job Description */}
+            {state.isDescriptionSame && (
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Job Description
+                </label>
+                <textarea 
+                  rows="2"
+                  value={state.globalDescription || ''}
+                  onChange={e => handleInputChange('globalDescription', e.target.value)}
+                  className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-mandiri-blue resize-none"
+                  placeholder="Describe tasks done for all overtime schedule..."
+                />
+              </div>
+            )}
+
+            {/* List of derived rows */}
+            <div className="space-y-4 pt-2 border-t border-gray-100 dark:border-gray-800/80">
+              {(!state.overtimeList || state.overtimeList.length === 0) ? (
+                <p className="text-center text-xs py-4 text-gray-400">
+                  Belum ada jadwal lembur yang terdeteksi di Timesheet.
+                </p>
+              ) : (
+                state.overtimeList.map((row, idx) => (
+                  <div 
+                    key={row.id} 
+                    className="p-3 rounded-xl border border-gray-200 dark:border-gray-800/80 bg-white/40 dark:bg-gray-900/20 space-y-3"
+                  >
+                    <div className="flex justify-between items-center text-xs font-bold text-gray-500">
+                      <span>Row #{idx + 1} ({row.isWeekend ? 'Weekend' : row.isHoliday ? 'Holiday' : 'Weekday'})</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {/* Date (Derived, Disabled) */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 mb-1">Date</label>
+                        <input 
+                          type="date"
+                          value={row.overtimeDate}
+                          disabled
+                          className="w-full text-xs rounded-lg px-2.5 py-1.5 bg-gray-150/60 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed font-medium"
+                        />
+                      </div>
+
+                      {/* Overtime Hours (Derived, Disabled) */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 mb-1">Hours Count</label>
+                        <input 
+                          type="number"
+                          value={row.overtimeHours}
+                          disabled
+                          className="w-full text-xs rounded-lg px-2.5 py-1.5 bg-gray-150/60 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed font-medium"
+                        />
+                      </div>
+
+                      {/* Time Range (Editable) */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 mb-1">Time Range</label>
+                        <input 
+                          type="text"
+                          value={row.timeRange}
+                          onChange={e => handleRowChange(row.id, 'timeRange', e.target.value)}
+                          className="w-full text-xs rounded-lg px-2.5 py-1.5 bg-white/70 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-mandiri-blue"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Job description (If mode is different, it is editable here. If same, it shows global description) */}
+                    {!state.isDescriptionSame && (
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 mb-1">Task / Job description</label>
+                        <input 
+                          type="text"
+                          value={row.task}
+                          onChange={e => handleRowChange(row.id, 'task', e.target.value)}
+                          className="w-full text-xs rounded-lg px-2.5 py-1.5 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-mandiri-blue"
+                          placeholder="Describe tasks done..."
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+          </div>
         </div>
       </div>
     </div>
