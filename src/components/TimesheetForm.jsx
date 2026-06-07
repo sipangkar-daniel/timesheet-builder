@@ -98,7 +98,7 @@ export const TimesheetForm = ({
         <h3 className="text-base font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-100 dark:border-gray-800 pb-2 flex items-center gap-2">
           <FileText className="w-5 h-5" /> Personnel Details
         </h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
@@ -218,7 +218,7 @@ export const TimesheetForm = ({
         <h3 className="text-base font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-100 dark:border-gray-800 pb-2 flex items-center gap-2">
           <Calendar className="w-5 h-5" /> Period & Work Rules
         </h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <MonthYearPicker 
             year={state.year}

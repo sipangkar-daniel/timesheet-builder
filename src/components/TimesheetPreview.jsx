@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getDaysInMonth, getDayAbbreviation, getMonthNameId } from '../utils/dateHelpers';
 import { PreviewActionPanel, PreviewViewport, PreviewBrandingHeader } from './PreviewShared';
 import { PLACEHOLDERS, TEXTS } from '../utils/constants';
@@ -15,12 +15,133 @@ export const TimesheetPreview = ({
   companyLogoUrl,
   vendorLogoUrl,
   signatureEmployeeUrl,
-  personnel
+  personnel,
+  mergedRowGroups = [],
+  setMergedRowGroups
 }) => {
   const [zoom, setZoom] = useState(1.0);
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2.0));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.5));
   const handleZoomReset = () => setZoom(1.0);
+
+  const [selectedIndices, setSelectedIndices] = useState([]);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [dragStartIdx, setDragStartIdx] = useState(null);
+
+  // Global MouseUp listener to terminate drag-selection cleanly
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      setIsSelecting(false);
+      setDragStartIdx(null);
+    };
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, []);
+
+  const handleMouseDown = (index, e) => {
+    if (isRowHidden(index)) return;
+    // Prevent default browser text selection
+    e.preventDefault();
+    setIsSelecting(true);
+    setDragStartIdx(index);
+  };
+
+  const handleMouseEnter = (index) => {
+    if (!isSelecting || dragStartIdx === null) return;
+    if (isRowHidden(index)) return;
+
+    // Calculate all visible rows between dragStartIdx and current index
+    const min = Math.min(dragStartIdx, index);
+    const max = Math.max(dragStartIdx, index);
+    const newSelected = [];
+    for (let i = min; i <= max; i++) {
+      if (!isRowHidden(i)) {
+        newSelected.push(i);
+      }
+    }
+    setSelectedIndices(newSelected);
+  };
+
+  // Merge Row Helpers
+  const getRowMergeGroup = (index) => {
+    return mergedRowGroups.find(group => group.indices.includes(index));
+  };
+
+  const isRowHidden = (index) => {
+    const group = getRowMergeGroup(index);
+    return group ? group.indices[0] !== index : false;
+  };
+
+  const isRowStartOfGroup = (index) => {
+    const group = getRowMergeGroup(index);
+    return group ? group.indices[0] === index : false;
+  };
+
+  const getRowSpan = (index) => {
+    const group = getRowMergeGroup(index);
+    return group ? group.indices.length : 1;
+  };
+
+  const getDisplayRowNumber = (index) => {
+    let count = 0;
+    for (let i = 0; i <= index; i++) {
+      if (!isRowHidden(i)) {
+        count++;
+      }
+    }
+    return count;
+  };
+
+  const toggleSelectRow = (index) => {
+    if (isRowHidden(index)) return;
+
+    setSelectedIndices(prev => {
+      if (prev.includes(index)) {
+        return prev.filter(i => i !== index);
+      } else {
+        return [...prev, index];
+      }
+    });
+  };
+
+  const handleMergeSelected = () => {
+    if (selectedIndices.length < 2) return;
+    
+    const resolvedIndices = [];
+    selectedIndices.forEach(idx => {
+      const group = getRowMergeGroup(idx);
+      if (group) {
+        resolvedIndices.push(...group.indices);
+      } else {
+        resolvedIndices.push(idx);
+      }
+    });
+
+    const minIdx = Math.min(...resolvedIndices);
+    const maxIdx = Math.max(...resolvedIndices);
+    
+    const indicesToMerge = [];
+    for (let i = minIdx; i <= maxIdx; i++) {
+      indicesToMerge.push(i);
+    }
+    
+    const newGroup = {
+      id: `merge-${Date.now()}`,
+      indices: indicesToMerge
+    };
+
+    setMergedRowGroups(prev => {
+      const filtered = prev.filter(g => !g.indices.some(idx => indicesToMerge.includes(idx)));
+      return [...filtered, newGroup];
+    });
+    setSelectedIndices([]);
+  };
+
+  const handleUnmerge = (groupToUnmerge) => {
+    setMergedRowGroups(prev => prev.filter(g => g.id !== groupToUnmerge.id));
+  };
 
   const { 
     employeeName, 
@@ -116,18 +237,30 @@ export const TimesheetPreview = ({
 
   // Calculate column sum for a specific day
   const calculateDaySum = (day) => {
-    let total = Number(getDefaultRowValue(day) || 0);
-    tickets.forEach(ticket => {
-      total += Number(getTicketRowValue(ticket.id || ticket.ticketNumber, day) || 0);
+    let total = 0;
+    if (!isRowHidden(0)) {
+      total += Number(getDefaultRowValue(day) || 0);
+    }
+    tickets.forEach((ticket, idx) => {
+      const rowIdx = 1 + idx;
+      if (!isRowHidden(rowIdx)) {
+        total += Number(getTicketRowValue(ticket.id || ticket.ticketNumber, day) || 0);
+      }
     });
     return total;
   };
 
   // Calculate grand total of all hours
   const calculateGrandTotal = () => {
-    let total = calculateDefaultRowSum();
-    tickets.forEach(ticket => {
-      total += calculateTicketRowSum(ticket.id || ticket.ticketNumber);
+    let total = 0;
+    if (!isRowHidden(0)) {
+      total += calculateDefaultRowSum();
+    }
+    tickets.forEach((ticket, idx) => {
+      const rowIdx = 1 + idx;
+      if (!isRowHidden(rowIdx)) {
+        total += calculateTicketRowSum(ticket.id || ticket.ticketNumber);
+      }
     });
     return total;
   };
@@ -195,264 +328,351 @@ export const TimesheetPreview = ({
         onZoomReset={handleZoomReset}
       />
 
-      <PreviewViewport>
-        {/* Spreadsheet Frame (Target of PDF generation) */}
-        <div 
-          id="timesheet-pdf-area" 
-          className="print-area font-sans text-black w-[1080px] mx-auto bg-white p-4"
-          style={{ zoom: zoom }}
-        >
-          <PreviewBrandingHeader 
-            type="timesheet"
-            companyLogoUrl={companyLogoUrl}
-            vendorLogoUrl={vendorLogoUrl}
-          />
-
-          {/* Metadata Block: CSS Grid replaces <table> to prevent html2canvas border-collapse bold lines */}
-          <div
-            className="sheet-grid text-center text-[9px] mb-4 select-none"
-            style={{ display: 'grid', gridTemplateColumns: '72px 240px 80px 80px 68px 1fr 140px', width: '100%' }}
+      <div className="flex-1 relative flex flex-col min-h-0">
+        <PreviewViewport>
+          {/* Spreadsheet Frame (Target of PDF generation) */}
+          <div 
+            id="timesheet-pdf-area" 
+            className="print-area font-sans text-black w-[1080px] mx-auto bg-white p-4"
+            style={{ zoom: zoom }}
           >
-            {/* Header Row */}
-            <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.ROLE}</div>
-            <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.NAME}</div>
-            <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.SIGNATURE}</div>
-            <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.MONTH}</div>
-            <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.YEAR}</div>
-            <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.DEPARTMENT_HEAD}</div>
-            <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.SIGNATURE}</div>
+            <PreviewBrandingHeader 
+              type="timesheet"
+              companyLogoUrl={companyLogoUrl}
+              vendorLogoUrl={vendorLogoUrl}
+            />
 
-            {/* Value Row */}
-            <div className="sheet-cell text-center text-gray-800" style={{ minHeight: '34px', padding: '4px' }}>{roleName || PLACEHOLDERS.ROLE}</div>
-            <div className="sheet-cell text-center font-bold text-gray-800" style={{ minHeight: '34px', padding: '4px' }}>{employeeName || PLACEHOLDERS.EMPLOYEE_NAME}</div>
-            <div className="sheet-cell bg-white" style={{ minHeight: '34px', padding: '4px' }}>
-              <div className="flex items-center justify-center min-h-[30px]">
-                {signatureEmployeeUrl ? (
-                  <img src={signatureEmployeeUrl} alt="Employee Signature" className="max-h-6 object-contain" />
-                ) : null}
-              </div>
-            </div>
-            <div className="sheet-cell text-center text-gray-800" style={{ minHeight: '34px', padding: '4px' }}>{monthName}</div>
-            <div className="sheet-cell text-center text-gray-800" style={{ minHeight: '34px', padding: '4px' }}>{year}</div>
-            <div className="sheet-cell text-center text-gray-800" style={{ minHeight: '34px', padding: '4px' }}>{departmentHeadName || PLACEHOLDERS.DEPARTMENT_HEAD_NAME}</div>
-            <div className="sheet-cell bg-white" style={{ minHeight: '34px', padding: '4px' }}>
-              <div className="flex items-center justify-center min-h-[22px]">
-                {/* DepartementHead signature remains blank */}
-              </div>
-            </div>
-          </div>
+            {/* Metadata Block: CSS Grid replaces <table> to prevent html2canvas border-collapse bold lines */}
+            <div
+              className="sheet-grid text-center text-[9px] mb-4 select-none"
+              style={{ display: 'grid', gridTemplateColumns: '72px 240px 80px 80px 68px 1fr 140px', width: '100%' }}
+            >
+              {/* Header Row */}
+              <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.ROLE}</div>
+              <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.NAME}</div>
+              <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.SIGNATURE}</div>
+              <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.MONTH}</div>
+              <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.YEAR}</div>
+              <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.DEPARTMENT_HEAD}</div>
+              <div className="sheet-cell font-bold bg-white" style={{ minHeight: '20px', padding: '4px' }}>{TEXTS.SIGNATURE}</div>
 
-          {/* Main Timesheet – CSS Grid replaces the HTML <table>.
-              CSS Grid grid-column/grid-row spanning is correctly captured by
-              html2canvas (unlike table rowspan/colspan with border-collapse).
-              Vertical text uses character-by-character flex stacking because
-              html2canvas does not support CSS writing-mode. */}
-          <div
-            className="sheet-grid select-none"
-            style={{ display: 'grid', gridTemplateColumns: gridTemplateCols, width: '100%' }}
-          >
-
-            {/* ── HEADER ROW 1: column labels ─────────────────────────── */}
-
-            {/* "No" spans both header rows */}
-            <div className="sheet-cell font-bold" style={cellPos(GC_NO, GR_HDR1, { rowSpan: 2 })}>{TEXTS.NO}</div>
-
-            {/* "Project Name / Activity Description" spans both header rows */}
-            <div className="sheet-cell font-bold text-center" style={{ ...cellPos(GC_ACT, GR_HDR1, { rowSpan: 2 }), lineHeight: '1.3' }}>
-              Project Name<br />Activity Description
-            </div>
-
-            {/* Day abbreviations */}
-            {daysArray.map(day => {
-              const bg = getDayBg(day);
-              return (
-                <div
-                  key={`abbrev-${day}`}
-                  className="sheet-cell font-bold"
-                  style={{ ...cellPos(gcDay(day), GR_HDR1), fontSize: '7px', ...(bg ? { backgroundColor: bg } : {}) }}
-                >
-                  {getDayAbbreviation(year, month, day)}
+              {/* Value Row */}
+              <div className="sheet-cell text-center text-gray-800" style={{ minHeight: '34px', padding: '4px' }}>{roleName || PLACEHOLDERS.ROLE}</div>
+              <div className="sheet-cell text-center font-bold text-gray-800" style={{ minHeight: '34px', padding: '4px' }}>{employeeName || PLACEHOLDERS.EMPLOYEE_NAME}</div>
+              <div className="sheet-cell bg-white" style={{ minHeight: '34px', padding: '4px' }}>
+                <div className="flex items-center justify-center min-h-[30px]">
+                  {signatureEmployeeUrl ? (
+                    <img src={signatureEmployeeUrl} alt="Employee Signature" className="max-h-6 object-contain" />
+                  ) : null}
                 </div>
-              );
-            })}
-
-            {/* "Sum (hrs)" spans both header rows */}
-            <div className="sheet-cell font-bold text-center" style={{ ...cellPos(GC_SUM, GR_HDR1, { rowSpan: 2 }), fontSize: '8px', lineHeight: '1.3' }}>
-              Sum<br />(hrs)
-            </div>
-
-            {/* "Supervisor Name" spans both header rows */}
-            <div className="sheet-cell font-bold text-center" style={{ ...cellPos(GC_CS, GR_HDR1, { rowSpan: 2 }), fontSize: '8px', lineHeight: '1.3' }}>
-              {TEXTS.SUPERVISOR_NAME}
-            </div>
-
-            {/* "Signature" spans both header rows */}
-            <div className="sheet-cell font-bold text-center" style={{ ...cellPos(GC_SIG, GR_HDR1, { rowSpan: 2 }), fontSize: '8px' }}>
-              {TEXTS.SIGNATURE}
-            </div>
-
-            {/* ── HEADER ROW 2: day numbers ─────────────────────────────── */}
-
-            {daysArray.map(day => {
-              const bg = getDayBg(day);
-              return (
-                <div
-                  key={`num-${day}`}
-                  className="sheet-cell font-bold"
-                  style={{ ...cellPos(gcDay(day), GR_HDR2), fontSize: '8px', ...(bg ? { backgroundColor: bg } : {}) }}
-                >
-                  {day}
-                </div>
-              );
-            })}
-
-            {/* ── CONTENT ROWS (unified: default row at index 0, tickets follow) ─── */}
-            {/* All rows are built from a single allRows array so they render
-                identically. Index 0 comes from defaultActivities; subsequent
-                entries come from timesheetTickets. */}
-
-            {tickets.length === 0 && (
-              <div 
-                className="sheet-cell italic text-gray-400"
-                style={{ ...cellPos(GC_NO, GR_DEF, { colSpan: GC_SUM }), minHeight: '34px', padding: '8px', justifyContent: 'center' }}
-              >
-                {TEXTS.EMPTY_TIMESHEET}
               </div>
-            )}
+              <div className="sheet-cell text-center text-gray-800" style={{ minHeight: '34px', padding: '4px' }}>{monthName}</div>
+              <div className="sheet-cell text-center text-gray-800" style={{ minHeight: '34px', padding: '4px' }}>{year}</div>
+              <div className="sheet-cell text-center text-gray-800" style={{ minHeight: '34px', padding: '4px' }}>{departmentHeadName || PLACEHOLDERS.DEPARTMENT_HEAD_NAME}</div>
+              <div className="sheet-cell bg-white" style={{ minHeight: '34px', padding: '4px' }}>
+                <div className="flex items-center justify-center min-h-[22px]">
+                  {/* DepartementHead signature remains blank */}
+                </div>
+              </div>
+            </div>
 
-            {(() => {
-              // Build unified rows – index 0 is the default/general task,
-              // followed by individual ticket rows.
-              const allRows = tickets.length === 0 ? [] : [
-                {
-                  key:      'default',
-                  label:    defaultActivities,
-                  getValue: (day) => getDefaultRowValue(day),
-                  getSum:   ()    => calculateDefaultRowSum(),
-                },
-                ...tickets.map(t => ({
-                  key:      t.id || t.ticketNumber,
-                  label:    `${t.ticketNumber} - ${t.title}`,
-                  getValue: (day) => getTicketRowValue(t.id || t.ticketNumber, day),
-                  getSum:   ()    => calculateTicketRowSum(t.id || t.ticketNumber),
-                })),
-              ];
+            {/* Main Timesheet – CSS Grid replaces the HTML <table>.
+                CSS Grid grid-column/grid-row spanning is correctly captured by
+                html2canvas (unlike table rowspan/colspan with border-collapse).
+                Vertical text uses character-by-character flex stacking because
+                html2canvas does not support CSS writing-mode. */}
+            <div
+              className="sheet-grid select-none"
+              style={{ display: 'grid', gridTemplateColumns: gridTemplateCols, width: '100%' }}
+            >
 
-              return allRows.map((row, index) => {
-                const rowIdx = GR_DEF + index; // row 3 for index 0, row 4 for index 1, …
-                const isFirstRow = index === 0;
+              {/* ── HEADER ROW 1: column labels ─────────────────────────── */}
 
+              {/* "No" spans both header rows */}
+              <div className="sheet-cell font-bold" style={cellPos(GC_NO, GR_HDR1, { rowSpan: 2 })}>{TEXTS.NO}</div>
+
+              {/* "Project Name / Activity Description" spans both header rows */}
+              <div className="sheet-cell font-bold text-center" style={{ ...cellPos(GC_ACT, GR_HDR1, { rowSpan: 2 }), lineHeight: '1.3' }}>
+                Project Name<br />Activity Description
+              </div>
+
+              {/* Day abbreviations */}
+              {daysArray.map(day => {
+                const bg = getDayBg(day);
                 return (
-                  <React.Fragment key={row.key}>
-                    {/* No */}
-                    <div className="sheet-cell" style={cellPos(GC_NO, rowIdx)}>{index + 1}</div>
+                  <div
+                    key={`abbrev-${day}`}
+                    className="sheet-cell font-bold"
+                    style={{ ...cellPos(gcDay(day), GR_HDR1), fontSize: '7px', ...(bg ? { backgroundColor: bg } : {}) }}
+                  >
+                    {getDayAbbreviation(year, month, day)}
+                  </div>
+                );
+              })}
 
-                    {/* Activity / ticket label */}
-                    <div
-                      className="sheet-cell"
-                      style={{ ...cellPos(GC_ACT, rowIdx), justifyContent: 'flex-start', textAlign: 'left', padding: '2px 6px', fontSize: '8px', wordBreak: 'break-word' }}
-                    >
-                      {row.label}
-                    </div>
+              {/* "Sum (hrs)" spans both header rows */}
+              <div className="sheet-cell font-bold text-center" style={{ ...cellPos(GC_SUM, GR_HDR1, { rowSpan: 2 }), fontSize: '8px', lineHeight: '1.3' }}>
+                Sum<br />(hrs)
+              </div>
 
-                    {/* Day cells */}
-                    {daysArray.map(day => {
-                      const isSpecial = isDaySpecial(day);
-                      const bg        = getDayBg(day);
+              {/* "Supervisor Name" spans both header rows */}
+              <div className="sheet-cell font-bold text-center" style={{ ...cellPos(GC_CS, GR_HDR1, { rowSpan: 2 }), fontSize: '8px', lineHeight: '1.3' }}>
+                {TEXTS.SUPERVISOR_NAME}
+              </div>
 
-                      if (isSpecial) {
-                        // Only the first row renders the spanning special-day cell.
-                        // Subsequent rows omit it – the span from row 0 covers them.
-                        if (!isFirstRow) return null;
+              {/* "Signature" spans both header rows */}
+              <div className="sheet-cell font-bold text-center" style={{ ...cellPos(GC_SIG, GR_HDR1, { rowSpan: 2 }), fontSize: '8px' }}>
+                {TEXTS.SIGNATURE}
+              </div>
 
-                        const label = getVerticalTextForDay(day);
+              {/* ── HEADER ROW 2: day numbers ─────────────────────────────── */}
+
+              {daysArray.map(day => {
+                const bg = getDayBg(day);
+                return (
+                  <div
+                    key={`num-${day}`}
+                    className="sheet-cell font-bold"
+                    style={{ ...cellPos(gcDay(day), GR_HDR2), fontSize: '8px', ...(bg ? { backgroundColor: bg } : {}) }}
+                  >
+                    {day}
+                  </div>
+                );
+              })}
+
+              {/* ── CONTENT ROWS (unified: default row at index 0, tickets follow) ─── */}
+              {/* All rows are built from a single allRows array so they render
+                  identically. Index 0 comes from defaultActivities; subsequent
+                  entries come from timesheetTickets. */}
+
+              {tickets.length === 0 && (
+                <div 
+                  className="sheet-cell italic text-gray-400"
+                  style={{ ...cellPos(GC_NO, GR_DEF, { colSpan: GC_SUM }), minHeight: '34px', padding: '8px', justifyContent: 'center' }}
+                >
+                  {TEXTS.EMPTY_TIMESHEET}
+                </div>
+              )}
+
+              {(() => {
+                // Build unified rows – index 0 is the default/general task,
+                // followed by individual ticket rows.
+                const allRows = tickets.length === 0 ? [] : [
+                  {
+                    key:      'default',
+                    label:    defaultActivities,
+                    getValue: (day) => getDefaultRowValue(day),
+                    getSum:   ()    => calculateDefaultRowSum(),
+                  },
+                  ...tickets.map(t => ({
+                    key:      t.id || t.ticketNumber,
+                    label:    `${t.ticketNumber} - ${t.title}`,
+                    getValue: (day) => getTicketRowValue(t.id || t.ticketNumber, day),
+                    getSum:   ()    => calculateTicketRowSum(t.id || t.ticketNumber),
+                  })),
+                ];
+
+                return allRows.map((row, index) => {
+                  const rowIdx = GR_DEF + index; // row 3 for index 0, row 4 for index 1, …
+                  const isFirstRow = index === 0;
+
+                  // Skip rendering if this row is merged and hidden
+                  if (isRowHidden(index)) return null;
+
+                  const isMergedStart = isRowStartOfGroup(index);
+                  const span = getRowSpan(index);
+                  const group = getRowMergeGroup(index);
+                  
+                  const cellLabel = isMergedStart 
+                    ? group.indices.map(i => allRows[i].label).join('\n')
+                    : row.label;
+
+                  const isSelected = selectedIndices.includes(index);
+                  const isMerged = mergedRowGroups.some(g => g.indices.includes(index));
+
+                  return (
+                    <React.Fragment key={row.key}>
+                      {/* No */}
+                      <div 
+                        className={`sheet-cell select-none transition-all cursor-pointer ${
+                          isSelected
+                            ? 'selected-row-cell text-mandiri-blue font-bold border-r-2 border-mandiri-blue' 
+                            : isMerged
+                              ? 'text-gray-500 bg-slate-50/60 hover:bg-slate-100'
+                              : 'hover:bg-slate-50'
+                        }`}
+                        style={cellPos(GC_NO, rowIdx, { rowSpan: span })}
+                        onClick={() => toggleSelectRow(index)}
+                        onMouseDown={(e) => handleMouseDown(index, e)}
+                        onMouseEnter={() => handleMouseEnter(index)}
+                        onDragStart={(e) => e.preventDefault()}
+                        title={isSelected ? "Deselect row" : "select row to merge"}
+                      >
+                        {getDisplayRowNumber(index)}
+                      </div>
+
+                      {/* Activity / ticket label */}
+                      <div
+                        className={`sheet-cell group relative transition-colors ${
+                          isSelected ? 'selected-row-cell' : ''
+                        }`}
+                        style={{ 
+                          ...cellPos(GC_ACT, rowIdx, { rowSpan: span }), 
+                          justifyContent: 'flex-start', 
+                          textAlign: 'left', 
+                          padding: '4px 6px', 
+                          fontSize: '8px', 
+                          wordBreak: 'break-word',
+                          whiteSpace: 'pre-line'
+                        }}
+                      >
+                        {cellLabel}
+
+                        {/* Hover Unmerge Button */}
+                        {isMergedStart && !isSelected && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUnmerge(group);
+                            }}
+                            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/20 dark:hover:bg-red-950/40 dark:text-red-400 px-1 py-0.5 rounded border border-red-200 dark:border-red-800 text-[8px] font-bold cursor-pointer no-print"
+                            title="Undo Merge (Unmerge)"
+                          >
+                            Unmerge
+                          </button>
+                        )}
+
+                        {/* Inline Merge controls */}
+                        {selectedIndices.length >= 2 && index === Math.max(...selectedIndices) && (
+                          <div className="absolute top-1 right-1 flex items-center gap-1 no-print animate-fade-in">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMergeSelected();
+                              }}
+                              className="bg-mandiri-blue hover:bg-mandiri-blue/90 text-white px-2 py-0.5 rounded border border-mandiri-blue text-[8px] font-bold cursor-pointer shadow-sm"
+                              title="Merge selected rows"
+                            >
+                              Merge
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedIndices([]);
+                              }}
+                              className="bg-white hover:bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200 text-[8px] font-bold cursor-pointer shadow-sm"
+                              title="Clear selection"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Day cells */}
+                      {daysArray.map(day => {
+                        const isSpecial = isDaySpecial(day);
+                        const bg        = getDayBg(day);
+
+                        if (isSpecial) {
+                          // Only the first row renders the spanning special-day cell.
+                          // Subsequent rows omit it – the span from row 0 covers them.
+                          if (!isFirstRow) return null;
+
+                          const label = getVerticalTextForDay(day);
+                          return (
+                            <div
+                              key={`special-${day}`}
+                              className="sheet-cell"
+                              style={{ ...cellPos(gcDay(day), GR_DEF, { rowSpan: totalContentRows }), flexDirection: 'column', ...(bg ? { backgroundColor: bg } : {}) }}
+                            >
+                              {label.split('').map((char, idx) => (
+                                <span key={idx} style={{ display: 'block', fontSize: '8px', fontWeight: 700, color: '#1e293b', lineHeight: '1.35' }}>
+                                  {char === ' ' ? '\u00A0' : char}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        }
+
+                        // Editable numeric cell.
+                        const val = row.getValue(day);
+                        const displayVal = val === 0 ? '' : String(val);
                         return (
                           <div
-                            key={`special-${day}`}
-                            className="sheet-cell"
-                            style={{ ...cellPos(gcDay(day), GR_DEF, { rowSpan: totalContentRows }), flexDirection: 'column', ...(bg ? { backgroundColor: bg } : {}) }}
+                            key={`${row.key}-day-${day}`}
+                            className={`sheet-cell transition-colors ${
+                              isSelected ? 'selected-row-cell' : ''
+                            }`}
+                            style={{ ...cellPos(gcDay(day), rowIdx, { rowSpan: span }), padding: 0, position: 'relative' }}
                           >
-                            {label.split('').map((char, idx) => (
-                              <span key={idx} style={{ display: 'block', fontSize: '8px', fontWeight: 700, color: '#1e293b', lineHeight: '1.35' }}>
-                                {char === ' ' ? '\u00A0' : char}
-                              </span>
-                            ))}
+                            <input
+                              type="number"
+                              min="0"
+                              max="24"
+                              value={displayVal}
+                              onChange={e => onCellEdit(row.key, day, e.target.value === '' ? 0 : Number(e.target.value))}
+                              className="excel-cell-input focus:bg-yellow-50 pdf-hide-input"
+                              style={{ width: '100%', minHeight: '22px', textAlign: 'center', border: 'none', background: 'transparent', fontSize: '9px', outline: 'none', padding: '4px 0', color: '#374151' }}
+                            />
+                            <span className="pdf-value-overlay">{displayVal}</span>
                           </div>
                         );
-                      }
+                      })}
 
-                      // Editable numeric cell.
-                      // Bug fix: html2canvas reads the DOM "value" attribute, not the
-                      // React-controlled .value property. We add a hidden .pdf-value-overlay
-                      // span that becomes visible in pdf-render-mode so the correct number
-                      // appears in the exported PDF.
-                      const val = row.getValue(day);
-                      const displayVal = val === 0 ? '' : String(val);
-                      return (
-                        <div
-                          key={`${row.key}-day-${day}`}
-                          className="sheet-cell"
-                          style={{ ...cellPos(gcDay(day), rowIdx), padding: 0, position: 'relative' }}
-                        >
-                          <input
-                            type="number"
-                            min="0"
-                            max="24"
-                            value={displayVal}
-                            onChange={e => onCellEdit(row.key, day, e.target.value === '' ? 0 : Number(e.target.value))}
-                            className="excel-cell-input focus:bg-yellow-50 pdf-hide-input"
-                            style={{ width: '100%', minHeight: '22px', textAlign: 'center', border: 'none', background: 'transparent', fontSize: '9px', outline: 'none', padding: '4px 0', color: '#374151' }}
-                          />
-                          <span className="pdf-value-overlay">{displayVal}</span>
-                        </div>
-                      );
-                    })}
+                      {/* Row sum */}
+                      <div 
+                        className={`sheet-cell transition-colors ${
+                          isSelected ? 'selected-row-cell font-bold' : ''
+                        }`} 
+                        style={cellPos(GC_SUM, rowIdx, { rowSpan: span })}
+                      >
+                        {row.getSum()}
+                      </div>
+                    </React.Fragment>
+                  );
+                });
+              })()}
 
-                    {/* Row sum */}
-                    <div className="sheet-cell" style={cellPos(GC_SUM, rowIdx)}>{row.getSum()}</div>
-                  </React.Fragment>
+              {/* Counter Sign + Signature: spanning cells placed outside the loop */}
+              <div
+                className="sheet-cell font-bold"
+                style={{ ...cellPos(GC_CS, GR_DEF, { rowSpan: totalContentRows + 1 }), textAlign: 'center', padding: '4px 6px', wordBreak: 'break-word' }}
+              >
+                {supervisorName || PLACEHOLDERS.SUPERVISOR_NAME}
+              </div>
+              <div className="sheet-cell" style={cellPos(GC_SIG, GR_DEF, { rowSpan: totalContentRows + 1 })} />
+
+              {/* ── TOTAL ROW ────────────────────────────────────────────── */}
+
+              {/* "TOTAL" label spans the No + Activity columns */}
+              <div className="sheet-cell font-bold" style={cellPos(GC_NO, GR_TOTAL, { colSpan: 2 })}>{TEXTS.TOTAL}</div>
+
+              {daysArray.map(day => {
+                const s  = calculateDaySum(day);
+                const bg = getDayBg(day);
+                return (
+                  <div
+                    key={`total-${day}`}
+                    className="sheet-cell font-bold"
+                    style={{ ...cellPos(gcDay(day), GR_TOTAL), ...(bg ? { backgroundColor: bg } : {}) }}
+                  >
+                    {s === 0 ? '' : s}
+                  </div>
                 );
-              });
-            })()}
+              })}
 
-            {/* Counter Sign + Signature: spanning cells placed outside the loop */}
-            <div
-              className="sheet-cell font-bold"
-              style={{ ...cellPos(GC_CS, GR_DEF, { rowSpan: totalContentRows + 1 }), textAlign: 'center', padding: '4px 6px', wordBreak: 'break-word' }}
-            >
-              {supervisorName || PLACEHOLDERS.SUPERVISOR_NAME}
-            </div>
-            <div className="sheet-cell" style={cellPos(GC_SIG, GR_DEF, { rowSpan: totalContentRows + 1 })} />
+              <div className="sheet-cell font-bold" style={cellPos(GC_SUM, GR_TOTAL)}>
+                {calculateGrandTotal()}
+              </div>
 
-            {/* ── TOTAL ROW ────────────────────────────────────────────── */}
-
-            {/* "TOTAL" label spans the No + Activity columns */}
-            <div className="sheet-cell font-bold" style={cellPos(GC_NO, GR_TOTAL, { colSpan: 2 })}>{TEXTS.TOTAL}</div>
-
-            {daysArray.map(day => {
-              const s  = calculateDaySum(day);
-              const bg = getDayBg(day);
-              return (
-                <div
-                  key={`total-${day}`}
-                  className="sheet-cell font-bold"
-                  style={{ ...cellPos(gcDay(day), GR_TOTAL), ...(bg ? { backgroundColor: bg } : {}) }}
-                >
-                  {s === 0 ? '' : s}
-                </div>
-              );
-            })}
-
-            <div className="sheet-cell font-bold" style={cellPos(GC_SUM, GR_TOTAL)}>
-              {calculateGrandTotal()}
+              {/* Counter Sign + Signature: covered by rowSpan from GR_DEF – omit */}
             </div>
 
-            {/* Counter Sign + Signature: covered by rowSpan from GR_DEF – omit */}
           </div>
 
-        </div>
-
-      </PreviewViewport>
+        </PreviewViewport>
+      </div>
     </div>
   );
 };

@@ -75,6 +75,10 @@
   background-color: #ffffff !important;
 }
 
+.pdf-render-mode .no-print {
+  display: none !important;
+}
+
 .pdf-render-mode .excel-table th, 
 .pdf-render-mode .excel-table td {
   border: 1px solid #000000 !important;
@@ -303,5 +307,13 @@
 }
 .excel-cell-input {
   -moz-appearance: textfield;
+}
+
+/* Excel-style row selection highlighting */
+.selected-row-cell {
+  background-color: #f1f5f9 !important; /* soft grey selection background */
+}
+.dark .selected-row-cell {
+  background-color: #334155 !important;
 }
 

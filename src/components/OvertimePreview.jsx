@@ -166,7 +166,6 @@ export const OvertimePreview = ({
               title={TEXTS.DISETUJUI_OLEH}
               name={supervisorName || PLACEHOLDERS.SUPERVISOR_NAME}
               role={supervisorRole || PLACEHOLDERS.SUPERVISOR_ROLE}
-              subtitle={TEXTS.TANDA_TANGAN}
             />
           </div>
 

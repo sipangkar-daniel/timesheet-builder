@@ -108,7 +108,7 @@ export const PreviewBrandingHeader = ({ type, companyLogoUrl, vendorLogoUrl }) =
   );
 };
 
-export const SignatureBox = ({ title, name, role, signatureUrl, subtitle = TEXTS.TANDA_TANGAN }) => {
+export const SignatureBox = ({ title, name, role, signatureUrl }) => {
   return (
     <div className="flex flex-col items-center text-center">
       <span className="mb-1">{title}</span>
@@ -118,11 +118,11 @@ export const SignatureBox = ({ title, name, role, signatureUrl, subtitle = TEXTS
         </div>
       ) : (
         <>
-          <span className="text-[10px] text-gray-400 font-medium italic">{subtitle}</span>
+          <span className="text-[10px] text-gray-400 font-medium italic">{}</span>
           <div className="h-16 my-2" />
         </>
       )}
-      <span className="font-bold border-b border-black px-4 pb-0.5">{name}</span>
+      <span className="font-bold px-4">{name}</span>
       <span className="text-[10px] font-medium text-gray-500 mt-0.5">{role}</span>
     </div>
   );

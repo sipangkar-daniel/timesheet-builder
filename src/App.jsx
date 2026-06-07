@@ -91,6 +91,7 @@ function App() {
   const [hourOfDefaultActivities, setHourOfDefaultActivities] = useState(1);
 
   const [timesheetTickets, setTimesheetTickets] = useState([]);
+  const [mergedRowGroups, setMergedRowGroups] = useState([]);
 
   const [timesheetHoursOverrides, setTimesheetHoursOverrides] = useState({});
   const [globalLogos, setGlobalLogos] = useState({
@@ -273,6 +274,7 @@ function App() {
       });
       return copy;
     });
+    setMergedRowGroups([]);
     setImportSuccessCount(newTickets.length);
     setShowImportSuccess(true);
   };
@@ -313,6 +315,7 @@ function App() {
   const handleResetOverrides = () => {
     if (window.confirm("Are you sure you want to reset all manual cell edits?")) {
       setTimesheetHoursOverrides({});
+      setMergedRowGroups([]);
     }
   };
 
@@ -417,7 +420,10 @@ function App() {
                   hourOfDefaultActivities={hourOfDefaultActivities}
                   setHourOfDefaultActivities={setHourOfDefaultActivities}
                   tickets={timesheetTickets}
-                  onClearTickets={() => setTimesheetTickets([])}
+                  onClearTickets={() => {
+                    setTimesheetTickets([]);
+                    setMergedRowGroups([]);
+                  }}
                   onTicketsParsed={handleTicketsParsed}
                   onTicketsParseError={handleTicketsParseError}
                   personnel={personnelState}
@@ -543,6 +549,8 @@ function App() {
                 vendorLogoUrl={globalLogos.vendorLogo}
                 signatureEmployeeUrl={globalLogos.signatureEmployee}
                 personnel={personnelState}
+                mergedRowGroups={mergedRowGroups}
+                setMergedRowGroups={setMergedRowGroups}
               />
             </div>
 

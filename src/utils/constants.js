@@ -1,15 +1,15 @@
 export const PLACEHOLDERS = {
-  EMPLOYEE_NAME: "Employee Name",
-  ROLE: "Role",
-  SUPERVISOR_NAME: "Supervisor Name",
-  SUPERVISOR_ROLE: "Supervisor Role",
-  DEPARTMENT_HEAD_NAME: "Department Head Name"
+  EMPLOYEE_NAME: "Daniel Sipangkar",
+  ROLE: "Backend Developer",
+  SUPERVISOR_NAME: "MUHAMMAD MUZMI' ULYA",
+  SUPERVISOR_ROLE: "Lead Backend Developer",
+  DEPARTMENT_HEAD_NAME: "Hendra Prabha"
 };
 
 export const TEXTS = {
   PEMOHON: "Pemohon,",
   DISETUJUI_OLEH: "Disetujui Oleh,",
-  TANDA_TANGAN: "(Tanda Tangan)",
+  TANDA_TANGAN: "",
   TOTAL: "TOTAL",
   DEFAULT_ACTIVITIES: "Grooming / Support Integration / Support UAT",
   DEFAULT_GLOBAL_DESCRIPTION: "Grooming / Support Testing Integrasi, UAT, BVT, Production",
