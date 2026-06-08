@@ -432,7 +432,7 @@ export const TimesheetPreview = ({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-[600px]">
       <div className="flex-1 relative flex flex-col min-h-0">
         <FloatingControls 
           onExportPdf={onGeneratePdf}

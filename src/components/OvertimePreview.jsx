@@ -39,7 +39,7 @@ export const OvertimePreview = ({
   const unitKerja = departmentName || PLACEHOLDERS.DEPARTMENT_NAME;
 
   return (
-    <div className="flex flex-col h-full min-h-0 relative">
+    <div className="flex flex-col h-[600px] min-h-0 relative">
       <FloatingControls 
         onExportPdf={onGeneratePdf}
         exportLabel={TEXTS.DOWNLOAD_PDF}

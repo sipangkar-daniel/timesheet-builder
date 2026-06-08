@@ -61,7 +61,7 @@ export const FloatingControls = ({
 
 export const PreviewViewport = ({ children }) => {
   return (
-    <div className="flex-1 overflow-auto border border-gray-200 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-950 p-6 shadow-xl relative min-w-0">
+    <div className="flex-1 overflow-auto border border-gray-200 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-950 p-6 shadow-xl relative min-w-0 custom-scrollbar">
       {children}
     </div>
   );

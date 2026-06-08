@@ -550,7 +550,7 @@ function App() {
         });
     };
 
-    const generateTimesheetFileName = (employeeName, monthName, prefix) => `${prefix} - ${employeeName} - ${monthName}.pdf`;
+    const generateTimesheetFileName = (employeeName, monthName, prefix) => `${prefix} - ${employeeName || PLACEHOLDERS.EMPLOYEE_NAME} - ${monthName}.pdf`;
 
 
     // PDF Export triggers with asynchronous loaders
