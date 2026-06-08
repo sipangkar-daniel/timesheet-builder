@@ -4,6 +4,7 @@ export const PLACEHOLDERS = {
   SUPERVISOR_NAME: "MUHAMMAD MUZMI' ULYA",
   SUPERVISOR_ROLE: "Lead Backend Developer",
   DEPARTMENT_HEAD_NAME: "Hendra Prabha",
+  DEPARTMENT_NAME: "DDL",
   DEFAULT_ACTIVITIES :"Grooming / Support Integration / Support UAT",
   DEFAULT_GLOBAL_DESCRIPTION: "Support Integration, UAT, BETA Project NBDS",
   DEFAULT_BASELINE_HOURS : 1,

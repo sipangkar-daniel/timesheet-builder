@@ -1,15 +1,9 @@
-import { useState } from 'react';
-import { Calendar, FileText, UserCheck, ChevronDown } from 'lucide-react';
-import { PLACEHOLDERS } from '../utils/constants';
+import { FileText } from 'lucide-react';
 
 export const OvertimeForm = ({ 
   state, 
-  setState,
-  personnel,
-  setPersonnel
+  setState
 }) => {
-  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
-
   const handleInputChange = (field, value) => {
     setState(prev => ({
       ...prev,
@@ -17,109 +11,10 @@ export const OvertimeForm = ({
     }));
   };
 
-  const handlePersonnelChange = (field, value) => {
-    setPersonnel(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  // Update a field inside a specific overtime row
-  const handleRowChange = (id, field, value) => {
-    setState(prev => {
-      const newList = prev.overtimeList.map(row => {
-        if (row.id !== id) return row;
-        
-        let updatedRow = { ...row, [field]: value };
-        
-        // If overtimeHours changed, automatically update the time range
-        if (field === 'overtimeHours') {
-          const hours = Number(value || 0);
-          const startHour = row.isWeekday ? 17 : 9;
-          
-          let displayHours = hours;
-          if (startHour + hours > 24) {
-            displayHours = 24 - startHour;
-          }
-          
-          const formatTime = (h) => `${String(h).padStart(2, '0')}:00`;
-          updatedRow.timeRange = `${formatTime(startHour)} - ${formatTime(startHour + displayHours)}`;
-        }
-        
-        return updatedRow;
-      });
-
-      return {
-        ...prev,
-        overtimeList: newList
-      };
-    });
-  };
-
 
 
   return (
     <div className="space-y-6">
-      {/* Employee & Supervisor Information */}
-      <div className="glass-panel rounded-2xl p-5 shadow-lg space-y-4">
-        <h3 className="text-base font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-100 dark:border-gray-800 pb-2 flex items-center gap-2">
-          <UserCheck className="w-5 h-5" /> Signatures & Personnel
-        </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-              Employee Name
-            </label>
-            <input 
-              type="text" 
-              value={personnel.employeeName}
-              placeholder={PLACEHOLDERS.EMPLOYEE_NAME}
-              onChange={e => handlePersonnelChange('employeeName', e.target.value)}
-              className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-              Role
-            </label>
-            <input 
-              type="text" 
-              value={personnel.roleName}
-              placeholder={PLACEHOLDERS.ROLE}
-              onChange={e => handlePersonnelChange('roleName', e.target.value)}
-              className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-              Supervisor Name
-            </label>
-            <input 
-              type="text" 
-              value={personnel.supervisorName}
-              placeholder={PLACEHOLDERS.SUPERVISOR_NAME}
-              onChange={e => handlePersonnelChange('supervisorName', e.target.value)}
-              className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-              Supervisor Role / Jabatan
-            </label>
-            <input 
-              type="text" 
-              value={personnel.supervisorRole}
-              placeholder={PLACEHOLDERS.SUPERVISOR_ROLE}
-              onChange={e => handlePersonnelChange('supervisorRole', e.target.value)}
-              className="w-full text-sm rounded-lg px-3 py-2 bg-white/70 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 text-gray-800 dark:text-white focus:ring-2 focus:ring-mandiri-blue focus:outline-none"
-            />
-          </div>
-        </div>
-      </div>
 
       {/* Form Texts & Branding */}
       <div className="glass-panel rounded-2xl p-5 shadow-lg space-y-4">
@@ -155,7 +50,6 @@ export const OvertimeForm = ({
           <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-gray-900/40 border border-slate-150 dark:border-gray-850 rounded-xl shadow-sm">
             <div className="flex flex-col gap-0.5 select-none">
               <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Gunakan Detail yang sama untuk semua overtime</span>
-              <span className="text-[10px] text-gray-400">Gunakan satu deskripsi pekerjaan untuk seluruh hari lembur</span>
             </div>
             <label className="relative inline-flex items-center cursor-pointer select-none">
               <input 

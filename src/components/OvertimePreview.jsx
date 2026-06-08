@@ -21,7 +21,8 @@ export const OvertimePreview = ({
     employeeName, 
     roleName, 
     supervisorName, 
-    supervisorRole 
+    supervisorRole,
+    departmentName
   } = personnel;
 
   const { 
@@ -34,8 +35,8 @@ export const OvertimePreview = ({
   const totalDays = overtimeList.length;
   const totalHours = overtimeList.reduce((acc, row) => acc + Number(row.overtimeHours || 0), 0);
 
-  // Unit Kerja falls back to Role
-  const unitKerja = roleName || PLACEHOLDERS.ROLE;
+  // Unit Kerja falls back to Department Name placeholder
+  const unitKerja = departmentName || PLACEHOLDERS.DEPARTMENT_NAME;
 
   return (
     <div className="flex flex-col h-full min-h-0 relative">
@@ -129,8 +130,7 @@ export const OvertimePreview = ({
                       
                       {/* Pekerjaan yang harus dikerjakan (auto wraps text) */}
                       <td className="border border-black p-1 text-left font-medium break-words max-w-[150px] relative">
-                        <input
-                          type="text"
+                        <textarea
                           value={row.task}
                           onChange={e => {
                             if (state.isDescriptionSame) {
@@ -139,10 +139,11 @@ export const OvertimePreview = ({
                               onRowChange?.(row.id, 'task', e.target.value);
                             }
                           }}
-                          className="excel-cell-input focus:bg-yellow-50 pdf-hide-input w-full font-medium"
-                          style={{ border: 'none', background: 'transparent', outline: 'none', padding: '2px', color: '#000', fontSize: '11px' }}
+                          rows={2}
+                          className="excel-cell-input focus:bg-yellow-50 pdf-hide-input w-full font-medium resize-none"
+                          style={{ border: 'none', background: 'transparent', outline: 'none', padding: '2px', color: '#000', fontSize: '11px', lineHeight: '1.2', display: 'block' }}
                         />
-                        <span className="pdf-value-overlay" style={{ justifyContent: 'flex-start', paddingLeft: '4px', fontSize: '11px', fontWeight: 505 }}>{row.task}</span>
+                        <span className="pdf-value-overlay" style={{ justifyContent: 'flex-start', alignItems: 'flex-start', paddingLeft: '4px', paddingRight: '4px', paddingTop: '2px', fontSize: '11px', fontWeight: 505, whiteSpace: 'pre-wrap', textAlign: 'left' }}>{row.task}</span>
                       </td>
                       
                       {/* Total Lembur (Jam) */}

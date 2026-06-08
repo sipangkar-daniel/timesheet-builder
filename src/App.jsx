@@ -1,17 +1,21 @@
 import {useState, useEffect, useRef} from 'react';
-import {TimesheetForm} from './components/TimesheetForm';
+import {BasicInfoForm} from './components/BasicInfoForm';
+import {UploadTicketForm} from './components/UploadTicketForm';
+import {DateRulesForm} from './components/DateRulesForm';
 import {TimesheetPreview} from './components/TimesheetPreview';
 import {OvertimeForm} from './components/OvertimeForm';
 import {OvertimePreview} from './components/OvertimePreview';
 import {getWeekendsInMonth, getMonthNameId, getDaysInMonth, isWeekendDay} from './utils/dateHelpers';
 import {exportToPdf} from './utils/pdfExporter';
-import {Calendar, FileText, Sparkles, Loader2, CheckCircle2, ChevronDown, Upload} from 'lucide-react';
+import {Calendar, FileText, Sparkles, Loader2, CheckCircle2, ChevronDown, Upload, UserCheck} from 'lucide-react';
 import defaultSignature from './assets/images/default-signature.png';
 import {PLACEHOLDERS, TEXTS} from './utils/constants';
 
 function App() {
     // Accordion open/close states
-    const [isTimesheetFormOpen, setIsTimesheetFormOpen] = useState(false);
+    const [isBasicInfoOpen, setIsBasicInfoOpen] = useState(true);
+    const [isUploadTicketOpen, setIsUploadTicketOpen] = useState(false);
+    const [isDateRulesOpen, setIsDateRulesOpen] = useState(false);
     const [isOvertimeFormOpen, setIsOvertimeFormOpen] = useState(false);
     const [isAssetsFormOpen, setIsAssetsFormOpen] = useState(false);
 
@@ -72,7 +76,8 @@ function App() {
         roleName: "",
         supervisorName: "",
         supervisorRole: "",
-        departmentHeadName: ""
+        departmentHeadName: "",
+        departmentName: ""
     });
 
     // ==========================================
@@ -637,26 +642,49 @@ function App() {
                     className="flex flex-col no-print min-w-0 overflow-y-auto h-full pr-1 pb-6 space-y-4"
                     style={{width: isLargeScreen ? `${leftWidth}%` : '100%', flexShrink: 0}}
                 >
-                    {/* Accordion 1: Timesheet Form */}
+                    {/* Accordion 1: Basic Information */}
                     <div
                         className="glass-panel rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800/80 overflow-hidden">
                         <button
-                            onClick={() => setIsTimesheetFormOpen(!isTimesheetFormOpen)}
+                            onClick={() => setIsBasicInfoOpen(!isBasicInfoOpen)}
                             className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 transition-colors text-left"
                         >
                             <div className="flex items-center gap-2">
-                                <Calendar className="w-5 h-5"/>
-                                <span>Timesheet Form</span>
+                                <UserCheck className="w-5 h-5"/>
+                                <span>Basic Information</span>
                             </div>
                             <ChevronDown
-                                className={`w-4 h-4 transition-transform duration-300 ${isTimesheetFormOpen ? 'rotate-180' : ''}`}/>
+                                className={`w-4 h-4 transition-transform duration-300 ${isBasicInfoOpen ? 'rotate-180' : ''}`}/>
                         </button>
                         <div
-                            className={`grid transition-all duration-300 ease-in-out ${isTimesheetFormOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                            className={`grid transition-all duration-300 ease-in-out ${isBasicInfoOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
                             <div className="overflow-hidden p-4">
-                                <TimesheetForm
-                                    state={timesheetState}
-                                    setState={setTimesheetState}
+                                <BasicInfoForm
+                                    personnel={personnelState}
+                                    setPersonnel={setPersonnelState}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Accordion 2: Upload Ticket */}
+                    <div
+                        className="glass-panel rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800/80 overflow-hidden">
+                        <button
+                            onClick={() => setIsUploadTicketOpen(!isUploadTicketOpen)}
+                            className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 transition-colors text-left"
+                        >
+                            <div className="flex items-center gap-2">
+                                <Upload className="w-5 h-5"/>
+                                <span>Import Tickets</span>
+                            </div>
+                            <ChevronDown
+                                className={`w-4 h-4 transition-transform duration-300 ${isUploadTicketOpen ? 'rotate-180' : ''}`}/>
+                        </button>
+                        <div
+                            className={`grid transition-all duration-300 ease-in-out ${isUploadTicketOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                            <div className="overflow-hidden p-4">
+                                <UploadTicketForm
                                     defaultActivities={defaultActivities}
                                     setDefaultActivities={setDefaultActivities}
                                     hourOfDefaultActivities={hourOfDefaultActivities}
@@ -668,8 +696,6 @@ function App() {
                                     }}
                                     onTicketsParsed={handleTicketsParsed}
                                     onTicketsParseError={handleTicketsParseError}
-                                    personnel={personnelState}
-                                    setPersonnel={setPersonnelState}
                                     isAutoGenerate={isAutoGenerate}
                                     setIsAutoGenerate={setIsAutoGenerate}
                                     weekdayHour={weekdayHour}
@@ -681,7 +707,32 @@ function App() {
                         </div>
                     </div>
 
-                    {/* Accordion 2: Overtime Form */}
+                    {/* Accordion 3: Timesheet Date Rules */}
+                    <div
+                        className="glass-panel rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800/80 overflow-hidden">
+                        <button
+                            onClick={() => setIsDateRulesOpen(!isDateRulesOpen)}
+                            className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 transition-colors text-left"
+                        >
+                            <div className="flex items-center gap-2">
+                                <Calendar className="w-5 h-5"/>
+                                <span>Calendar Setting  </span>
+                            </div>
+                            <ChevronDown
+                                className={`w-4 h-4 transition-transform duration-300 ${isDateRulesOpen ? 'rotate-180' : ''}`}/>
+                        </button>
+                        <div
+                            className={`grid transition-all duration-300 ease-in-out ${isDateRulesOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                            <div className="overflow-hidden p-4">
+                                <DateRulesForm
+                                    state={timesheetState}
+                                    setState={setTimesheetState}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Accordion 4: Overtime Form */}
                     <div
                         className="glass-panel rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800/80 overflow-hidden">
                         <button
@@ -690,7 +741,7 @@ function App() {
                         >
                             <div className="flex items-center gap-2">
                                 <FileText className="w-5 h-5"/>
-                                <span>Overtime Form</span>
+                                <span>Overtime (Optional Update)</span>
                             </div>
                             <ChevronDown
                                 className={`w-4 h-4 transition-transform duration-300 ${isOvertimeFormOpen ? 'rotate-180' : ''}`}/>
@@ -701,8 +752,6 @@ function App() {
                                 <OvertimeForm
                                     state={overtimeState}
                                     setState={setOvertimeState}
-                                    personnel={personnelState}
-                                    setPersonnel={setPersonnelState}
                                 />
                             </div>
                         </div>
@@ -717,7 +766,7 @@ function App() {
                         >
                             <div className="flex items-center gap-2">
                                 <Upload className="w-5 h-5"/>
-                                <span>Import Logo And Employee Signature (Optional)</span>
+                                <span>Signature and Logos (Optional)</span>
                             </div>
                             <ChevronDown
                                 className={`w-4 h-4 transition-transform duration-300 ${isAssetsFormOpen ? 'rotate-180' : ''}`}/>
@@ -827,10 +876,17 @@ function App() {
                                 personnel={personnelState}
                                 onRowChange={handleOvertimeRowChange}
                                 onGlobalDescriptionChange={(val) => {
-                                    setOvertimeState(prev => ({
-                                        ...prev,
-                                        globalDescription: val
-                                    }));
+                                    setOvertimeState(prev => {
+                                        const updatedList = prev.overtimeList.map(row => ({
+                                            ...row,
+                                            task: val
+                                        }));
+                                        return {
+                                            ...prev,
+                                            globalDescription: val,
+                                            overtimeList: updatedList
+                                        };
+                                    });
                                 }}
                             />
                         </div>
@@ -927,43 +983,71 @@ function App() {
                 </div>
             )}
 
-            {showImportError && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-all duration-300">
+            {showImportError && (() => {
+                const hasCode = importErrorMsg && importErrorMsg.includes('|[CODE]');
+                const textMsg = hasCode ? importErrorMsg.split('|[CODE]')[0] : importErrorMsg;
+                const codeExample = hasCode ? importErrorMsg.split('|[CODE]')[1] : null;
+
+                return (
                     <div
-                        className="bg-white rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 text-center animate-fade-in">
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-all duration-300">
                         <div
-                            className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center text-red-600 mb-4 shadow-inner">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2}
-                                 stroke="currentColor" className="w-8 h-8">
-                                <path strokeLinecap="round" strokeLinejoin="round"
-                                      d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
-                            </svg>
-                        </div>
-                        <h3 className="text-lg font-extrabold text-red-600 mb-1">Jira Import Failed</h3>
-                        <p className="text-xs text-gray-500 mb-4 max-w-xs leading-normal">
-                            An error occurred during file parsing.
-                        </p>
-
-                        <div
-                            className="w-full bg-red-50/55 border border-red-100 rounded-xl p-3 mb-5 text-left font-mono">
-                            <div className="text-[10px] text-red-500 font-bold uppercase tracking-wider mb-0.5">Error
-                                Message
+                            className="bg-white rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 text-center animate-fade-in">
+                            <div
+                                className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center text-red-600 mb-4 shadow-inner">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2}
+                                     stroke="currentColor" className="w-8 h-8">
+                                    <path strokeLinecap="round" strokeLinejoin="round"
+                                          d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                                </svg>
                             </div>
-                            <div className="text-xs font-semibold text-red-700 leading-normal">
-                                {importErrorMsg}
-                            </div>
-                        </div>
+                            <h3 className="text-lg font-extrabold text-red-600 mb-1">Jira Import Failed</h3>
+                            <p className="text-xs text-gray-500 mb-4 max-w-xs leading-normal">
+                                An error occurred during file parsing.
+                            </p>
 
-                        <button
-                            onClick={() => setShowImportError(false)}
-                            className="w-full py-2.5 bg-red-650 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-md"
-                        >
-                            Close
-                        </button>
+                            <div
+                                className="w-full bg-red-50/55 border border-red-100 rounded-xl p-3 mb-5 text-left font-sans">
+                                <div className="text-[10px] text-red-500 font-bold uppercase tracking-wider mb-0.5">Error
+                                    Message
+                                </div>
+                                <div className="text-xs font-semibold text-red-700 leading-normal" style={{ whiteSpace: 'pre-wrap' }}>
+                                    {textMsg}
+                                </div>
+                                {codeExample && (
+                                    <div className="relative border border-red-100/60 rounded-lg overflow-hidden bg-slate-900 text-slate-100 font-mono text-[10px] p-2.5 mt-2.5 shadow-inner">
+                                        <div className="flex justify-between items-center mb-1 text-[8px] text-slate-400 select-none">
+                                            <span>JSON TEMPLATE</span>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    navigator.clipboard.writeText(codeExample);
+                                                    const btn = e.currentTarget;
+                                                    btn.textContent = "Copied!";
+                                                    setTimeout(() => {
+                                                        btn.textContent = "Copy";
+                                                    }, 2000);
+                                                }}
+                                                className="text-cyan-400 hover:text-cyan-300 font-bold uppercase tracking-wider hover:underline focus:outline-none"
+                                            >
+                                                Copy
+                                            </button>
+                                        </div>
+                                        <pre className="overflow-x-auto whitespace-pre-wrap">{codeExample}</pre>
+                                    </div>
+                                )}
+                            </div>
+
+                            <button
+                                onClick={() => setShowImportError(false)}
+                                className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-md"
+                            >
+                                Close
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
 
         </div>
     );
