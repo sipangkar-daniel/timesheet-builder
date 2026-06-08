@@ -515,6 +515,36 @@ function App() {
         });
     };
 
+    const handleOvertimeRowChange = (id, field, value) => {
+        setOvertimeState(prev => {
+            const newList = prev.overtimeList.map(row => {
+                if (row.id !== id) return row;
+                
+                let updatedRow = { ...row, [field]: value };
+                
+                if (field === 'overtimeHours') {
+                    const hours = Number(value || 0);
+                    const startHour = row.isWeekday ? 17 : 9;
+                    
+                    let displayHours = hours;
+                    if (startHour + hours > 24) {
+                        displayHours = 24 - startHour;
+                    }
+                    
+                    const formatTime = (h) => `${String(h).padStart(2, '0')}:00`;
+                    updatedRow.timeRange = `${formatTime(startHour)} - ${formatTime(startHour + displayHours)}`;
+                }
+                
+                return updatedRow;
+            });
+
+            return {
+                ...prev,
+                overtimeList: newList
+            };
+        });
+    };
+
     const generateTimesheetFileName = (employeeName, monthName, prefix) => `${prefix} - ${employeeName} - ${monthName}.pdf`;
 
 
@@ -795,6 +825,13 @@ function App() {
                                 companyLogoUrl={globalLogos.companyLogo}
                                 signatureEmployeeUrl={globalLogos.signatureEmployee}
                                 personnel={personnelState}
+                                onRowChange={handleOvertimeRowChange}
+                                onGlobalDescriptionChange={(val) => {
+                                    setOvertimeState(prev => ({
+                                        ...prev,
+                                        globalDescription: val
+                                    }));
+                                }}
                             />
                         </div>
                     </div>

@@ -8,7 +8,9 @@ export const OvertimePreview = ({
   onGeneratePdf,
   companyLogoUrl,
   signatureEmployeeUrl,
-  personnel
+  personnel,
+  onRowChange,
+  onGlobalDescriptionChange
 }) => {
   const [zoom, setZoom] = useState(1.0);
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2.0));
@@ -126,8 +128,21 @@ export const OvertimePreview = ({
                       </td>
                       
                       {/* Pekerjaan yang harus dikerjakan (auto wraps text) */}
-                      <td className="border border-black p-2 text-left font-medium break-words max-w-[150px]">
-                        {row.task}
+                      <td className="border border-black p-1 text-left font-medium break-words max-w-[150px] relative">
+                        <input
+                          type="text"
+                          value={row.task}
+                          onChange={e => {
+                            if (state.isDescriptionSame) {
+                              onGlobalDescriptionChange?.(e.target.value);
+                            } else {
+                              onRowChange?.(row.id, 'task', e.target.value);
+                            }
+                          }}
+                          className="excel-cell-input focus:bg-yellow-50 pdf-hide-input w-full font-medium"
+                          style={{ border: 'none', background: 'transparent', outline: 'none', padding: '2px', color: '#000', fontSize: '11px' }}
+                        />
+                        <span className="pdf-value-overlay" style={{ justifyContent: 'flex-start', paddingLeft: '4px', fontSize: '11px', fontWeight: 505 }}>{row.task}</span>
                       </td>
                       
                       {/* Total Lembur (Jam) */}
