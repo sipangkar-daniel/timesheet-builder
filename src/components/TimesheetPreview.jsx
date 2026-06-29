@@ -539,7 +539,7 @@ export const TimesheetPreview = ({
                   },
                   ...tickets.map(t => ({
                     key:      t.id || t.ticketNumber,
-                    label:    `${t.ticketNumber} - ${t.title}`,
+                    label:    `${t.ticketNumber && `${t.ticketNumber} - `}${t.title}`,
                     getValue: (day) => getTicketRowValue(t.id || t.ticketNumber, day),
                     getSum:   ()    => calculateTicketRowSum(t.id || t.ticketNumber),
                   })),
