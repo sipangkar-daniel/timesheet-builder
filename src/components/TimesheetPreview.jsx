@@ -19,19 +19,15 @@ export const TimesheetPreview = ({
   setMergedRowGroups,
   isAutoGenerate,
   weekdayHour,
-  weekendHour
+  weekendHour,
+  autoHours = {}
 }) => {
   const [zoom, setZoom] = useState(1.0);
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2.0));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.5));
   const handleZoomReset = () => setZoom(1.0);
 
-  const [manuallyEditingDays, setManuallyEditingDays] = useState({});
 
-  // Reset manually editing days state when month or year changes
-  useEffect(() => {
-    setManuallyEditingDays({});
-  }, [state.year, state.month]);
 
   const [selectedIndices, setSelectedIndices] = useState([]);
   const [isSelecting, setIsSelecting] = useState(false);
@@ -172,68 +168,9 @@ export const TimesheetPreview = ({
   const monthName = getMonthNameId(month);
   const daysArray = Array.from({ length: totalDays }, (_, i) => i + 1);
 
-  // 1. Get active days in the month
-  const activeDays = [];
-  for (let d = 1; d <= totalDays; d++) {
-    const dStr = String(d).padStart(2, '0');
-    const mStr = String(month).padStart(2, '0');
-    const dateKey = `${year}-${mStr}-${dStr}`;
-
-    const isHoliday = holidayDays.includes(dateKey) && !workedHolidayDays?.includes(dateKey);
-    const isLeave = leaveDays.includes(dateKey);
-    const isWeekend = weekendDays.includes(dateKey);
-
-    if (!isHoliday && !isLeave && !isWeekend) {
-      const isWorkedHoliday = workedHolidayDays?.includes(dateKey);
-      const isPhysicallyWeekend = isWeekendDay(year, month, d);
-      activeDays.push({
-        day: d,
-        dateKey,
-        isWeekendOrWorkedHoliday: isPhysicallyWeekend || isWorkedHoliday
-      });
-    }
-  }
-
-  // 2. Pre-calculate auto-generated hours map
-  const autoHours = {};
-  if (isAutoGenerate && activeDays.length > 0 && tickets.length > 0) {
-    const M = activeDays.length;
-    const N = tickets.length;
-    const baseCount = Math.floor(N / M);
-    const remainder = N % M;
-
-    tickets.forEach(t => {
-      const ticketKey = t.id || t.ticketNumber;
-      autoHours[ticketKey] = {};
-    });
-
-    let ticketIdx = 0;
-    activeDays.forEach((activeDay, i) => {
-      const d = activeDay.day;
-      const hourPerTicket = activeDay.isWeekendOrWorkedHoliday ? weekendHour : weekdayHour;
-      const count = i < remainder ? baseCount + 1 : baseCount;
-
-      for (let c = 0; c < count; c++) {
-        if (ticketIdx < N) {
-          const ticket = tickets[ticketIdx];
-          const ticketKey = ticket.id || ticket.ticketNumber;
-          const rowIdx = 1 + ticketIdx;
-          const group = mergedRowGroups.find(g => g.indices.includes(rowIdx));
-          const isHidden = group ? group.indices[0] !== rowIdx : false;
-
-          if (isHidden) {
-            autoHours[ticketKey][d] = 0;
-          } else {
-            autoHours[ticketKey][d] = hourPerTicket;
-          }
-          ticketIdx++;
-        }
-      }
-    });
-  }
-
   const getAutoHoursSumForDay = (day) => {
     let sum = 0;
+    if (!autoHours) return 0;
     tickets.forEach(ticket => {
       const ticketKey = ticket.id || ticket.ticketNumber;
       if (autoHours[ticketKey] && autoHours[ticketKey][day] !== undefined) {
@@ -267,9 +204,6 @@ export const TimesheetPreview = ({
   // Check if a specific day is a Weekend, Holiday, or Leave day
   const isDaySpecial = (day) => {
     const key = getDateKey(day);
-    if (manuallyEditingDays[day]) {
-      return false;
-    }
 
     const isHoliday = holidayDays.includes(key) && !workedHolidayDays.includes(key);
     const isLeave = leaveDays.includes(key);
@@ -313,27 +247,34 @@ export const TimesheetPreview = ({
     if (tickets.length === 0) return 0;
     const key = getDateKey(day);
 
-    const isWeekend = isWeekendDay(year, month, day);
+    // Non-working special days → 0
+    const isWeekend = weekendDays.includes(key);
     const isWorkedHoliday = workedHolidayDays.includes(key);
-    if (isWeekend || isWorkedHoliday) {
+    const isHoliday = holidayDays.includes(key) && !isWorkedHoliday;
+    const isLeave = leaveDays.includes(key);
+
+    if (isHoliday || isLeave) {
       return 0;
     }
 
-    const isSpecial = weekendDays.includes(key) || 
-                      (holidayDays.includes(key) && !workedHolidayDays.includes(key)) || 
-                      leaveDays.includes(key);
-    if (isSpecial) {
+    // Weekend (not removed from weekendDays) → 0 (still a non-work day)
+    if (isWeekend) {
       return 0;
     }
 
-    if (isAutoGenerate) {
-      const dayHasTicket = tickets.some(ticket => {
-        const ticketKey = ticket.id || ticket.ticketNumber;
-        return autoHours[ticketKey] && autoHours[ticketKey][day] > 0;
-      });
-      if (!dayHasTicket) {
-        return weekdayHour;
-      }
+    const dayHasTicket = tickets.some(ticket => {
+      const ticketKey = ticket.id || ticket.ticketNumber;
+      return getTicketRowValue(ticketKey, day) > 0;
+    });
+
+    // Working on weekend or worked holiday → use weekendHour
+    if (isWorkedHoliday) {
+      return dayHasTicket ? hourOfDefaultActivities : weekendHour;
+    }
+
+    // Regular weekday → weekendHour if ticket present, otherwise weekdayHour
+    if (!dayHasTicket) {
+      return weekdayHour;
     }
 
     return hourOfDefaultActivities;
@@ -353,7 +294,7 @@ export const TimesheetPreview = ({
     if (hoursOverrides[ticketKey] && hoursOverrides[ticketKey][day] !== undefined) {
       return hoursOverrides[ticketKey][day];
     }
-    if (isAutoGenerate) {
+    if (isAutoGenerate && autoHours) {
       return autoHours[ticketKey] && autoHours[ticketKey][day] !== undefined
         ? autoHours[ticketKey][day]
         : 0;
@@ -645,7 +586,7 @@ export const TimesheetPreview = ({
 
                       {/* Activity / ticket label */}
                       <div
-                        className={`sheet-cell group relative transition-colors ${
+                        className={`sheet-cell group relative transition-colors cursor-pointer ${
                           isSelected ? 'selected-row-cell' : ''
                         }`}
                         style={{ 
@@ -657,6 +598,11 @@ export const TimesheetPreview = ({
                           wordBreak: 'break-word',
                           whiteSpace: 'pre-line'
                         }}
+                        onClick={() => toggleSelectRow(index)}
+                        onMouseDown={(e) => handleMouseDown(index, e)}
+                        onMouseEnter={() => handleMouseEnter(index)}
+                        onDragStart={(e) => e.preventDefault()}
+                        title={isSelected ? 'Deselect row' : 'Select row to merge'}
                       >
                         {cellLabel}
 
@@ -674,10 +620,16 @@ export const TimesheetPreview = ({
                           </button>
                         )}
 
-                        {/* Inline Merge controls */}
-                        {selectedIndices.length >= 2 && index === Math.max(...selectedIndices) && (
+                        {/* Inline Merge controls – show on the last VISIBLE selected row */}
+                        {(() => {
+                          const lastVisibleSelected = selectedIndices
+                            .filter(i => !isRowHidden(i))
+                            .reduce((max, i) => Math.max(max, i), -1);
+                          return selectedIndices.length >= 2 && index === lastVisibleSelected;
+                        })() && (
                           <div className="absolute top-1 right-1 flex items-center gap-1 no-print animate-fade-in">
                             <button
+                              onMouseDown={(e) => e.stopPropagation()}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleMergeSelected();
@@ -688,6 +640,7 @@ export const TimesheetPreview = ({
                               Merge
                             </button>
                             <button
+                              onMouseDown={(e) => e.stopPropagation()}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedIndices([]);
@@ -715,10 +668,7 @@ export const TimesheetPreview = ({
                           return (
                             <div
                               key={`special-${day}`}
-                              className="sheet-cell cursor-pointer hover:bg-slate-100/30 transition-colors"
-                              onClick={() => {
-                                setManuallyEditingDays(prev => ({ ...prev, [day]: true }));
-                              }}
+                              className="sheet-cell"
                               style={{ ...cellPos(gcDay(day), GR_DEF, { rowSpan: totalContentRows }), flexDirection: 'column', ...(bg ? { backgroundColor: bg } : {}) }}
                             >
                               {label.split('').map((char, idx) => (

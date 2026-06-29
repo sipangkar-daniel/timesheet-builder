@@ -1,10 +1,11 @@
-import {useState, useEffect, useRef} from 'react';
+import {useState, useEffect, useRef, useMemo} from 'react';
 import {BasicInfoForm} from './components/BasicInfoForm';
 import {UploadTicketForm} from './components/UploadTicketForm';
 import {DateRulesForm} from './components/DateRulesForm';
 import {TimesheetPreview} from './components/TimesheetPreview';
 import {OvertimeForm} from './components/OvertimeForm';
 import {OvertimePreview} from './components/OvertimePreview';
+import {ImageInputField} from './components/ImageInputField';
 import {getWeekendsInMonth, getMonthNameId, getDaysInMonth, isWeekendDay, formatIndonesianDate} from './utils/dateHelpers';
 import {exportToPdf} from './utils/pdfExporter';
 import {Calendar, FileText, Sparkles, Loader2, CheckCircle2, ChevronDown, Upload, UserCheck, Sun, Moon} from 'lucide-react';
@@ -145,6 +146,81 @@ function App() {
         setTimesheetHoursOverrides({});
     }, [timesheetState.month, timesheetState.year]);
 
+    // Calculate active days and auto-generated hours
+    const { activeDays, autoHours } = useMemo(() => {
+        const totalDays = getDaysInMonth(timesheetState.year, timesheetState.month);
+        const activeDays = [];
+        for (let d = 1; d <= totalDays; d++) {
+            const dStr = String(d).padStart(2, '0');
+            const mStr = String(timesheetState.month).padStart(2, '0');
+            const dateKey = `${timesheetState.year}-${mStr}-${dStr}`;
+
+            const isHoliday = timesheetState.holidayDays.includes(dateKey) && !timesheetState.workedHolidayDays?.includes(dateKey);
+            const isLeave = timesheetState.leaveDays.includes(dateKey);
+            const isWeekend = timesheetState.weekendDays.includes(dateKey);
+
+            if (!isHoliday && !isLeave && !isWeekend) {
+                const isWorkedHoliday = timesheetState.workedHolidayDays?.includes(dateKey);
+                activeDays.push({
+                    day: d,
+                    dateKey,
+                    isWeekendOrWorkedHoliday: isWeekend || isWorkedHoliday
+                });
+            }
+        }
+
+        const autoHours = {};
+        if (isAutoGenerate && activeDays.length > 0 && timesheetTickets.length > 0) {
+            const M = activeDays.length;
+            const N = timesheetTickets.length;
+            const baseCount = Math.floor(N / M);
+            const remainder = N % M;
+
+            timesheetTickets.forEach(t => {
+                const ticketKey = t.id || t.ticketNumber;
+                autoHours[ticketKey] = {};
+            });
+
+            let ticketIdx = 0;
+            activeDays.forEach((activeDay, i) => {
+                const d = activeDay.day;
+                const hourPerTicket = activeDay.isWeekendOrWorkedHoliday ? weekendHour : weekdayHour;
+                const count = i < remainder ? baseCount + 1 : baseCount;
+
+                for (let c = 0; c < count; c++) {
+                    if (ticketIdx < N) {
+                        const ticket = timesheetTickets[ticketIdx];
+                        const ticketKey = ticket.id || ticket.ticketNumber;
+                        const rowIdx = 1 + ticketIdx;
+                        const group = mergedRowGroups.find(g => g.indices.includes(rowIdx));
+                        const isHidden = group ? group.indices[0] !== rowIdx : false;
+
+                        if (isHidden) {
+                            autoHours[ticketKey][d] = 0;
+                        } else {
+                            autoHours[ticketKey][d] = hourPerTicket;
+                        }
+                        ticketIdx++;
+                    }
+                }
+            });
+        }
+
+        return { activeDays, autoHours };
+    }, [
+        timesheetState.year,
+        timesheetState.month,
+        timesheetState.weekendDays,
+        timesheetState.holidayDays,
+        timesheetState.workedHolidayDays,
+        timesheetState.leaveDays,
+        isAutoGenerate,
+        timesheetTickets,
+        weekdayHour,
+        weekendHour,
+        mergedRowGroups
+    ]);
+
     const [globalLogos, setGlobalLogos] = useState({
         companyLogo: null,
         vendorLogo: null,
@@ -182,145 +258,59 @@ function App() {
         const totalDays = getDaysInMonth(timesheetState.year, timesheetState.month);
         const qualifying = [];
 
-        // 1. Get active days in the month
-        const activeDays = [];
-        for (let d = 1; d <= totalDays; d++) {
-            const dStr = String(d).padStart(2, '0');
-            const mStr = String(timesheetState.month).padStart(2, '0');
-            const dateKey = `${timesheetState.year}-${mStr}-${dStr}`;
-
-            const isHoliday = timesheetState.holidayDays.includes(dateKey) && !timesheetState.workedHolidayDays?.includes(dateKey);
-            const isLeave = timesheetState.leaveDays.includes(dateKey);
-            const isWeekend = timesheetState.weekendDays.includes(dateKey);
-
-            if (!isHoliday && !isLeave && !isWeekend) {
-                const isWorkedHoliday = timesheetState.workedHolidayDays?.includes(dateKey);
-                const isPhysicallyWeekend = isWeekendDay(timesheetState.year, timesheetState.month, d);
-                activeDays.push({
-                    day: d,
-                    dateKey,
-                    isWeekendOrWorkedHoliday: isPhysicallyWeekend || isWorkedHoliday
-                });
-            }
-        }
-
-        // 2. Pre-calculate auto-generated hours if enabled
-        let autoHours = {};
-        if (isAutoGenerate && activeDays.length > 0 && timesheetTickets.length > 0) {
-            const M = activeDays.length;
-            const N = timesheetTickets.length;
-            const baseCount = Math.floor(N / M);
-            const remainder = N % M;
-
-            timesheetTickets.forEach(t => {
-                const ticketKey = t.id || t.ticketNumber;
-                autoHours[ticketKey] = {};
-            });
-
-            let ticketIdx = 0;
-            activeDays.forEach((activeDay, i) => {
-                const d = activeDay.day;
-                const hourPerTicket = activeDay.isWeekendOrWorkedHoliday ? weekendHour : weekdayHour;
-                const count = i < remainder ? baseCount + 1 : baseCount;
-
-                for (let c = 0; c < count; c++) {
-                    if (ticketIdx < N) {
-                        const ticket = timesheetTickets[ticketIdx];
-                        const ticketKey = ticket.id || ticket.ticketNumber;
-                        const rowIdx = 1 + ticketIdx;
-                        const group = mergedRowGroups.find(g => g.indices.includes(rowIdx));
-                        const isHidden = group ? group.indices[0] !== rowIdx : false;
-
-                        if (isHidden) {
-                            autoHours[ticketKey][d] = 0;
-                        } else {
-                            autoHours[ticketKey][d] = hourPerTicket;
-                        }
-                        ticketIdx++;
-                    }
-                }
-            });
-        }
-
         for (let day = 1; day <= totalDays; day++) {
             const dStr = String(day).padStart(2, '0');
             const mStr = String(timesheetState.month).padStart(2, '0');
             const dateKey = `${timesheetState.year}-${mStr}-${dStr}`;
 
-            let daySum = 0;
-            if (isAutoGenerate) {
-                // Calculate default row baseline hours (same as manual mode)
-                let defVal = timesheetTickets.length === 0 ? 0 : hourOfDefaultActivities;
-                const isWeekend = isWeekendDay(timesheetState.year, timesheetState.month, day);
-                const isWorkedHoliday = timesheetState.workedHolidayDays?.includes(dateKey);
-
-                if (isWeekend || isWorkedHoliday) {
-                    defVal = 0;
-                } else {
-                    const isSpecial = timesheetState.weekendDays.includes(dateKey) ||
-                        (timesheetState.holidayDays.includes(dateKey) && !timesheetState.workedHolidayDays?.includes(dateKey)) ||
-                        timesheetState.leaveDays.includes(dateKey);
-                    if (isSpecial) {
-                        defVal = 0;
-                    } else if (timesheetTickets.length > 0) {
-                        const dayHasTicket = timesheetTickets.some(ticket => {
-                            const ticketKey = ticket.id || ticket.ticketNumber;
-                            return autoHours[ticketKey] && autoHours[ticketKey][day] > 0;
-                        });
-                        if (!dayHasTicket) {
-                            defVal = weekdayHour;
-                        }
-                    }
+            const getTicketValue = (ticketKey) => {
+                if (timesheetHoursOverrides[ticketKey] && timesheetHoursOverrides[ticketKey][day] !== undefined) {
+                    return timesheetHoursOverrides[ticketKey][day];
                 }
-
-                if (timesheetHoursOverrides['default'] && timesheetHoursOverrides['default'][day] !== undefined) {
-                    defVal = timesheetHoursOverrides['default'][day];
-                }
-                daySum += Number(defVal || 0);
-
-                timesheetTickets.forEach(ticket => {
-                    const ticketKey = ticket.id || ticket.ticketNumber;
-                    let ticketVal = autoHours[ticketKey] && autoHours[ticketKey][day] !== undefined
+                if (isAutoGenerate) {
+                    return autoHours[ticketKey] && autoHours[ticketKey][day] !== undefined
                         ? autoHours[ticketKey][day]
                         : 0;
-                    if (timesheetHoursOverrides[ticketKey] && timesheetHoursOverrides[ticketKey][day] !== undefined) {
-                        ticketVal = timesheetHoursOverrides[ticketKey][day];
-                    }
-                    daySum += Number(ticketVal || 0);
-                });
+                }
+                return 0;
+            };
+
+            let defVal = timesheetTickets.length === 0 ? 0 : hourOfDefaultActivities;
+            const isWeekend = timesheetState.weekendDays.includes(dateKey);
+            const isWorkedHoliday = timesheetState.workedHolidayDays?.includes(dateKey);
+            const isHoliday = timesheetState.holidayDays.includes(dateKey) && !isWorkedHoliday;
+            const isLeave = timesheetState.leaveDays.includes(dateKey);
+
+            if (isHoliday || isLeave || isWeekend) {
+                // Non-working days → no default contribution
+                defVal = 0;
             } else {
-                // Calculate total daily hours from Timesheet
-                let defVal = timesheetTickets.length === 0 ? 0 : hourOfDefaultActivities;
-
-                const isWeekend = isWeekendDay(timesheetState.year, timesheetState.month, day);
-                const isWorkedHoliday = timesheetState.workedHolidayDays?.includes(dateKey);
-
-                if (isWeekend || isWorkedHoliday) {
-                    defVal = 0;
-                } else {
-                    const isSpecial = timesheetState.weekendDays.includes(dateKey) ||
-                        (timesheetState.holidayDays.includes(dateKey) && !timesheetState.workedHolidayDays?.includes(dateKey)) ||
-                        timesheetState.leaveDays.includes(dateKey);
-                    if (isSpecial) defVal = 0;
-                }
-
-                if (timesheetHoursOverrides['default'] && timesheetHoursOverrides['default'][day] !== undefined) {
-                    defVal = timesheetHoursOverrides['default'][day];
-                }
-
-                daySum = Number(defVal || 0);
-                timesheetTickets.forEach(ticket => {
-                    let ticketVal = 0;
+                const dayHasTicket = timesheetTickets.length > 0 && timesheetTickets.some(ticket => {
                     const ticketKey = ticket.id || ticket.ticketNumber;
-                    if (timesheetHoursOverrides[ticketKey] && timesheetHoursOverrides[ticketKey][day] !== undefined) {
-                        ticketVal = timesheetHoursOverrides[ticketKey][day];
-                    }
-                    daySum += Number(ticketVal || 0);
+                    return getTicketValue(ticketKey) > 0;
                 });
+
+                if (isWorkedHoliday) {
+                    // Working on a holiday → weekendHour as default, or baseline if has ticket
+                    defVal = dayHasTicket ? hourOfDefaultActivities : weekendHour;
+                } else {
+                    // Regular weekday → weekdayHour if no tickets, baseline if has tickets
+                    defVal = dayHasTicket ? hourOfDefaultActivities : (timesheetTickets.length > 0 ? weekdayHour : 0);
+                }
             }
 
+            if (timesheetHoursOverrides['default'] && timesheetHoursOverrides['default'][day] !== undefined) {
+                defVal = timesheetHoursOverrides['default'][day];
+            }
+
+            let daySum = Number(defVal || 0);
+            timesheetTickets.forEach(ticket => {
+                const ticketKey = ticket.id || ticket.ticketNumber;
+                daySum += Number(getTicketValue(ticketKey) || 0);
+            });
+
             if (daySum > 0) {
-                const isWeekend = isWeekendDay(timesheetState.year, timesheetState.month, day);
+                const isWeekend = timesheetState.weekendDays.includes(dateKey);
                 const isWorkedHoliday = timesheetState.workedHolidayDays?.includes(dateKey);
                 const isHoliday = timesheetState.holidayDays.includes(dateKey);
                 const isLeave = timesheetState.leaveDays.includes(dateKey);
@@ -454,42 +444,25 @@ function App() {
         isAutoGenerate,
         weekdayHour,
         weekendHour,
-        mergedRowGroups
+        autoHours
     ]);
 
     // ==========================================
     // AUTOMATIC SAME-DAY ROW MERGING
     // ==========================================
+    // Use a ref to track the last auto-computed merge groups so we can compare
+    // without putting mergedRowGroups in the dependency array (which would cause
+    // every manual merge to be immediately overwritten by the auto-merge effect).
+    const lastAutoMergeRef = useRef(null);
+
     useEffect(() => {
         if (!isAutoGenerate) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setMergedRowGroups(prev => {
                 if (prev.length > 0) return [];
                 return prev;
             });
+            lastAutoMergeRef.current = null;
             return;
-        }
-
-        const totalDays = getDaysInMonth(timesheetState.year, timesheetState.month);
-        const activeDays = [];
-        for (let d = 1; d <= totalDays; d++) {
-            const dStr = String(d).padStart(2, '0');
-            const mStr = String(timesheetState.month).padStart(2, '0');
-            const dateKey = `${timesheetState.year}-${mStr}-${dStr}`;
-
-            const isHoliday = timesheetState.holidayDays.includes(dateKey) && !timesheetState.workedHolidayDays?.includes(dateKey);
-            const isLeave = timesheetState.leaveDays.includes(dateKey);
-            const isWeekend = timesheetState.weekendDays.includes(dateKey);
-
-            if (!isHoliday && !isLeave && !isWeekend) {
-                const isWorkedHoliday = timesheetState.workedHolidayDays?.includes(dateKey);
-                const isPhysicallyWeekend = isWeekendDay(timesheetState.year, timesheetState.month, d);
-                activeDays.push({
-                    day: d,
-                    dateKey,
-                    isWeekendOrWorkedHoliday: isPhysicallyWeekend || isWorkedHoliday
-                });
-            }
         }
 
         if (activeDays.length > 0 && timesheetTickets.length > 0) {
@@ -520,7 +493,9 @@ function App() {
                 }
             });
 
-            if (JSON.stringify(mergedRowGroups) !== JSON.stringify(newMergedGroups)) {
+            const serialized = JSON.stringify(newMergedGroups);
+            if (lastAutoMergeRef.current !== serialized) {
+                lastAutoMergeRef.current = serialized;
                 setMergedRowGroups(newMergedGroups);
             }
         } else {
@@ -528,17 +503,12 @@ function App() {
                 if (prev.length > 0) return [];
                 return prev;
             });
+            lastAutoMergeRef.current = null;
         }
     }, [
         isAutoGenerate,
         timesheetTickets,
-        timesheetState.year,
-        timesheetState.month,
-        timesheetState.holidayDays,
-        timesheetState.leaveDays,
-        timesheetState.workedHolidayDays,
-        timesheetState.weekendDays,
-        mergedRowGroups
+        activeDays,
     ]);
 
     // ==========================================
@@ -584,14 +554,56 @@ function App() {
         }));
     };
 
+    const handleLogoUrl = (url, type) => {
+        setGlobalLogos(prev => ({
+            ...prev,
+            [type]: url || null
+        }));
+    };
+
+    const handleLogoClear = (type) => {
+        setGlobalLogos(prev => ({
+            ...prev,
+            [type]: null
+        }));
+    };
+
     const handleCellEdit = (rowId, day, value) => {
         setTimesheetHoursOverrides(prev => {
-            const rowOverrides = prev[rowId] ? {...prev[rowId]} : {};
+            const copy = {...prev};
+            
+            // Set the new value in the override
+            const rowOverrides = copy[rowId] ? {...copy[rowId]} : {};
             rowOverrides[day] = value;
-            return {
-                ...prev,
-                [rowId]: rowOverrides
-            };
+            copy[rowId] = rowOverrides;
+
+            // If we are editing a ticket cell and setting it to 0 / empty
+            if (rowId !== 'default' && (value === 0 || value === '')) {
+                // Check if there are any other tickets with >0 hours on this day
+                const hasOtherTicketHours = timesheetTickets.some(t => {
+                    const tKey = t.id || t.ticketNumber;
+                    if (tKey === rowId) return false;
+
+                    if (copy[tKey] && copy[tKey][day] !== undefined) {
+                        return Number(copy[tKey][day] || 0) > 0;
+                    }
+                    if (isAutoGenerate) {
+                        return autoHours[tKey] && autoHours[tKey][day] > 0;
+                    }
+                    return false;
+                });
+
+                // If no other tickets have hours, clear the default row override for this day
+                if (!hasOtherTicketHours) {
+                    if (copy['default'] && copy['default'][day] !== undefined) {
+                        const newDefaultOverrides = {...copy['default']};
+                        delete newDefaultOverrides[day];
+                        copy['default'] = newDefaultOverrides;
+                    }
+                }
+            }
+
+            return copy;
         });
     };
 
@@ -897,45 +909,32 @@ function App() {
                         <div
                             className={`grid transition-all duration-300 ease-in-out ${isAssetsFormOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
                             <div className="overflow-hidden p-4 space-y-4">
-                                {/* Logo File Selectors */}
+                                {/* Logo File / URL Selectors */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label
-                                            className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
-                                            Company Logo (Override)
-                                        </label>
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={e => handleLogoUpload(e, 'companyLogo')}
-                                            className="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-mandiri-blue/10 file:text-mandiri-blue dark:file:bg-gray-800 dark:file:text-gray-300 hover:file:bg-mandiri-blue/20"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label
-                                            className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
-                                            Vendor Logo (Override)
-                                        </label>
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={e => handleLogoUpload(e, 'vendorLogo')}
-                                            className="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-mandiri-blue/10 file:text-mandiri-blue dark:file:bg-gray-800 dark:file:text-gray-300 hover:file:bg-mandiri-blue/20"
-                                        />
-                                    </div>
+                                    <ImageInputField
+                                        label="Company Logo (Override)"
+                                        value={globalLogos.companyLogo}
+                                        onFile={e => handleLogoUpload(e, 'companyLogo')}
+                                        onUrl={url => handleLogoUrl(url, 'companyLogo')}
+                                        onClear={() => handleLogoClear('companyLogo')}
+                                    />
+                                    <ImageInputField
+                                        label="Vendor Logo (Override)"
+                                        value={globalLogos.vendorLogo}
+                                        onFile={e => handleLogoUpload(e, 'vendorLogo')}
+                                        onUrl={url => handleLogoUrl(url, 'vendorLogo')}
+                                        onClear={() => handleLogoClear('vendorLogo')}
+                                    />
                                 </div>
 
-                                {/* Employee Signature File Upload */}
+                                {/* Employee Signature */}
                                 <div className="pt-2 border-t border-gray-100 dark:border-gray-800/80">
-                                    <label
-                                        className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
-                                        Employee Signature Image
-                                    </label>
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={e => handleLogoUpload(e, 'signatureEmployee')}
-                                        className="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-mandiri-blue/10 file:text-mandiri-blue dark:file:bg-gray-800 dark:file:text-gray-300 hover:file:bg-mandiri-blue/20"
+                                    <ImageInputField
+                                        label="Employee Signature Image"
+                                        value={globalLogos.signatureEmployee}
+                                        onFile={e => handleLogoUpload(e, 'signatureEmployee')}
+                                        onUrl={url => handleLogoUrl(url, 'signatureEmployee')}
+                                        onClear={() => handleLogoClear('signatureEmployee')}
                                     />
                                 </div>
                             </div>
@@ -985,6 +984,7 @@ function App() {
                                 isAutoGenerate={isAutoGenerate}
                                 weekdayHour={weekdayHour}
                                 weekendHour={weekendHour}
+                                autoHours={autoHours}
                             />
                         </div>
 
