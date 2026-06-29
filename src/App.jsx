@@ -6,6 +6,8 @@ import {TimesheetPreview} from './components/TimesheetPreview';
 import {OvertimeForm} from './components/OvertimeForm';
 import {OvertimePreview} from './components/OvertimePreview';
 import {ImageInputField} from './components/ImageInputField';
+import {StorageConsentBanner, useStorageConsent} from './components/StorageBanner';
+import {loadPersistedData, useAutoSave} from './utils/persistence';
 import {getWeekendsInMonth, getMonthNameId, getDaysInMonth, isWeekendDay, formatIndonesianDate} from './utils/dateHelpers';
 import {exportToPdf} from './utils/pdfExporter';
 import {Calendar, FileText, Sparkles, Loader2, CheckCircle2, ChevronDown, Upload, UserCheck, Sun, Moon} from 'lucide-react';
@@ -13,6 +15,15 @@ import defaultSignature from './assets/images/default-signature.png';
 import {PLACEHOLDERS, TEXTS} from './utils/constants';
 
 function App() {
+    // ==========================================
+    // COOKIE CONSENT & PERSISTENCE
+    // ==========================================
+    const { consent, accept, decline, hasAnswered } = useStorageConsent();
+    const [showConsentBanner, setShowConsentBanner] = useState(!hasAnswered);
+
+    // Load saved data once at startup (only if consent was previously granted)
+    const _saved = consent ? (loadPersistedData() || {}) : {};
+
     // Theme Mode state
     const [darkMode, setDarkMode] = useState(() => {
         const savedTheme = localStorage.getItem('theme');
@@ -109,14 +120,14 @@ function App() {
     // ==========================================
     // STATE FOR FEATURE 1: TIMESHEET BUILDER
     // ==========================================
-    const [personnelState, setPersonnelState] = useState({
-        employeeName: "",
-        roleName: "",
-        supervisorName: "",
-        supervisorRole: "",
-        departmentHeadName: "",
-        departmentName: ""
-    });
+    const [personnelState, setPersonnelState] = useState(() => ({
+        employeeName: _saved.personnel?.employeeName ?? "",
+        roleName: _saved.personnel?.roleName ?? "",
+        supervisorName: _saved.personnel?.supervisorName ?? "",
+        supervisorRole: _saved.personnel?.supervisorRole ?? "",
+        departmentHeadName: _saved.personnel?.departmentHeadName ?? "",
+        departmentName: _saved.personnel?.departmentName ?? ""
+    }));
 
     // ==========================================
     // STATE FOR FEATURE 1: TIMESHEET BUILDER
@@ -221,11 +232,17 @@ function App() {
         mergedRowGroups
     ]);
 
-    const [globalLogos, setGlobalLogos] = useState({
-        companyLogo: null,
-        vendorLogo: null,
-        signatureEmployee: defaultSignature
-    });
+    const [globalLogos, setGlobalLogos] = useState(() => ({
+        companyLogo: _saved.logos?.companyLogo ?? null,
+        vendorLogo: _saved.logos?.vendorLogo ?? null,
+        signatureEmployee: _saved.logos?.signatureEmployee ?? defaultSignature
+    }));
+
+    // ==========================================
+    // AUTO-SAVE HOOKS (only when consent given)
+    // ==========================================
+    useAutoSave('personnel', personnelState, consent);
+    useAutoSave('logos', globalLogos, consent);
 
     // ==========================================
     // STATE FOR FEATURE 2: OVERTIME BUILDER
@@ -547,11 +564,16 @@ function App() {
             return;
         }
 
-        const logoUrl = URL.createObjectURL(file);
-        setGlobalLogos(prev => ({
-            ...prev,
-            [type]: logoUrl
-        }));
+        // Read as base64 so it can be persisted to localStorage
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const base64 = event.target.result;
+            setGlobalLogos(prev => ({
+                ...prev,
+                [type]: base64
+            }));
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleLogoUrl = (url, type) => {
@@ -728,6 +750,7 @@ function App() {
     };
 
     return (
+        <>
         <div
             className={`min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/40 dark:from-slate-950 dark:to-slate-900 text-gray-800 dark:text-gray-100 transition-colors duration-300 font-sans flex flex-col ${isDragging ? 'select-none' : ''}`}>
 
@@ -1174,6 +1197,15 @@ function App() {
             })()}
 
         </div>
+
+        {/* Cookie Consent Banner */}
+        {showConsentBanner && (
+            <StorageConsentBanner
+                onAccept={() => { accept(); setShowConsentBanner(false); }}
+                onDecline={() => { decline(); setShowConsentBanner(false); }}
+            />
+        )}
+        </>
     );
 }
 
