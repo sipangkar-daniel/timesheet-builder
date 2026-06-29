@@ -172,11 +172,7 @@ export const OvertimePreview = ({
                         <textarea
                           value={row.task}
                           onChange={e => {
-                            if (state.isDescriptionSame) {
-                              onGlobalDescriptionChange?.(e.target.value);
-                            } else {
-                              onRowChange?.(row.id, 'task', e.target.value);
-                            }
+                            onRowChange?.(row.id, 'task', e.target.value);
                           }}
                           rows={2}
                           className="excel-cell-input focus:bg-yellow-50 pdf-hide-input w-full font-medium resize-none"

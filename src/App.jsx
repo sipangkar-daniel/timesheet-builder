@@ -463,7 +463,10 @@ function App() {
     useEffect(() => {
         if (!isAutoGenerate) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
-            setMergedRowGroups([]);
+            setMergedRowGroups(prev => {
+                if (prev.length > 0) return [];
+                return prev;
+            });
             return;
         }
 
@@ -521,7 +524,10 @@ function App() {
                 setMergedRowGroups(newMergedGroups);
             }
         } else {
-            setMergedRowGroups([]);
+            setMergedRowGroups(prev => {
+                if (prev.length > 0) return [];
+                return prev;
+            });
         }
     }, [
         isAutoGenerate,

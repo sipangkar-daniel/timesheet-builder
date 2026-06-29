@@ -8,7 +8,7 @@ export const PLACEHOLDERS = {
   DEFAULT_ACTIVITIES :"Grooming / Support Integration / Support UAT",
   DEFAULT_GLOBAL_DESCRIPTION: "Support Integration, UAT, BETA Project NBDS",
   DEFAULT_BASELINE_HOURS : 1,
-  DEFAULT_AUTO_GENERATE: false,
+  DEFAULT_AUTO_GENERATE: true,
   DEFAULT_WEEKDAY_HOUR: 8,
   DEFAULT_WEEKEND_HOUR: 5
 };
