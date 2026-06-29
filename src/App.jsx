@@ -5,7 +5,7 @@ import {DateRulesForm} from './components/DateRulesForm';
 import {TimesheetPreview} from './components/TimesheetPreview';
 import {OvertimeForm} from './components/OvertimeForm';
 import {OvertimePreview} from './components/OvertimePreview';
-import {getWeekendsInMonth, getMonthNameId, getDaysInMonth, isWeekendDay} from './utils/dateHelpers';
+import {getWeekendsInMonth, getMonthNameId, getDaysInMonth, isWeekendDay, formatIndonesianDate} from './utils/dateHelpers';
 import {exportToPdf} from './utils/pdfExporter';
 import {Calendar, FileText, Sparkles, Loader2, CheckCircle2, ChevronDown, Upload, UserCheck, Sun, Moon} from 'lucide-react';
 import defaultSignature from './assets/images/default-signature.png';
@@ -59,6 +59,8 @@ function App() {
     const [isDragging, setIsDragging] = useState(false);
     const [isLargeScreen, setIsLargeScreen] = useState(window.innerWidth >= 1024);
     const containerRef = useRef(null);
+    const prevGlobalDescRef = useRef(PLACEHOLDERS.DEFAULT_GLOBAL_DESCRIPTION);
+    const prevIsDescSameRef = useRef(true);
 
     useEffect(() => {
         const handleResize = () => {
@@ -137,6 +139,12 @@ function App() {
     const [mergedRowGroups, setMergedRowGroups] = useState([]);
 
     const [timesheetHoursOverrides, setTimesheetHoursOverrides] = useState({});
+
+    // Reset overrides when month or year changes
+    useEffect(() => {
+        setTimesheetHoursOverrides({});
+    }, [timesheetState.month, timesheetState.year]);
+
     const [globalLogos, setGlobalLogos] = useState({
         companyLogo: null,
         vendorLogo: null,
@@ -252,7 +260,17 @@ function App() {
                     const isSpecial = timesheetState.weekendDays.includes(dateKey) ||
                         (timesheetState.holidayDays.includes(dateKey) && !timesheetState.workedHolidayDays?.includes(dateKey)) ||
                         timesheetState.leaveDays.includes(dateKey);
-                    if (isSpecial) defVal = 0;
+                    if (isSpecial) {
+                        defVal = 0;
+                    } else if (timesheetTickets.length > 0) {
+                        const dayHasTicket = timesheetTickets.some(ticket => {
+                            const ticketKey = ticket.id || ticket.ticketNumber;
+                            return autoHours[ticketKey] && autoHours[ticketKey][day] > 0;
+                        });
+                        if (!dayHasTicket) {
+                            defVal = weekdayHour;
+                        }
+                    }
                 }
 
                 if (timesheetHoursOverrides['default'] && timesheetHoursOverrides['default'][day] !== undefined) {
@@ -343,7 +361,18 @@ function App() {
             }
         }
 
-        const newOvertimeList = qualifying.map(q => {
+        // Limit the derived overtime schedule to a maximum of 20 days
+        const limitedQualifying = qualifying.slice(0, 20);
+
+        const globalDescChanged = prevGlobalDescRef.current !== overtimeState.globalDescription;
+        const isDescSameToggledOn = !prevIsDescSameRef.current && overtimeState.isDescriptionSame;
+        
+        prevGlobalDescRef.current = overtimeState.globalDescription;
+        prevIsDescSameRef.current = overtimeState.isDescriptionSame;
+
+        const forceGlobalDesc = overtimeState.isDescriptionSame && (globalDescChanged || isDescSameToggledOn);
+
+        const newOvertimeList = limitedQualifying.map(q => {
             const existing = overtimeState.overtimeList.find(item => item.overtimeDate === q.date);
 
             // Determine starting hour: Weekday is 17:00 (5 PM), Weekend/Holiday is 09:00 (9 AM)
@@ -366,20 +395,31 @@ function App() {
                 overtimeHours = existing.overtimeHours !== undefined ? existing.overtimeHours : derivedHours;
             }
 
-            // Automatically recalculate time range based on overtimeHours
+            // Automatically recalculate time range based on overtimeHours if it hasn't been manually overrode
             let displayHours = overtimeHours;
             if (startHour + displayHours > 24) {
                 displayHours = 24 - startHour;
             }
-            const timeRange = `${formatTime(startHour)} - ${formatTime(startHour + displayHours)}`;
+            const defaultTimeRange = `${formatTime(startHour)} - ${formatTime(startHour + displayHours)}`;
+            
+            // Preserve manual override of timeRange if it exists and hours didn't change
+            let timeRange = defaultTimeRange;
+            if (existing && !hoursChanged && existing.timeRange !== undefined) {
+                timeRange = existing.timeRange;
+            }
 
-            const taskText = overtimeState.isDescriptionSame
-                ? (overtimeState.globalDescription || '')
-                : (existing ? existing.task : PLACEHOLDERS.DEFAULT_GLOBAL_DESCRIPTION);
+            let taskText = existing && existing.task !== undefined
+                ? (forceGlobalDesc ? (overtimeState.globalDescription || '') : existing.task)
+                : (overtimeState.isDescriptionSame ? (overtimeState.globalDescription || '') : PLACEHOLDERS.DEFAULT_GLOBAL_DESCRIPTION);
+
+            let dateText = existing && existing.dateText !== undefined
+                ? existing.dateText
+                : formatIndonesianDate(q.date, true);
 
             return {
                 id: existing ? existing.id : q.date,
                 overtimeDate: q.date,
+                dateText: dateText,
                 overtimeHours: overtimeHours,
                 derivedHours: derivedHours,
                 timeRange: timeRange,
@@ -389,12 +429,6 @@ function App() {
                 task: taskText
             };
         });
-
-        if (overtimeState.isDescriptionSame) {
-            newOvertimeList.forEach(item => {
-                item.task = overtimeState.globalDescription || '';
-            });
-        }
 
         const isDifferent = JSON.stringify(overtimeState.overtimeList) !== JSON.stringify(newOvertimeList);
         if (isDifferent) {
@@ -555,7 +589,34 @@ function App() {
         });
     };
 
+    const handlePersonnelFieldChange = (field, value) => {
+        setPersonnelState(prev => ({
+            ...prev,
+            [field]: value
+        }));
+    };
+
     const handleOvertimeRowChange = (id, field, value) => {
+        const parseHoursFromTimeRange = (timeRangeStr) => {
+            const match = timeRangeStr.match(/(\d{1,2})[:.](\d{2})\s*-\s*(\d{1,2})[:.](\d{2})/);
+            if (!match) return null;
+            
+            const startH = parseInt(match[1], 10);
+            const startM = parseInt(match[2], 10);
+            const endH = parseInt(match[3], 10);
+            const endM = parseInt(match[4], 10);
+            
+            let startMinutes = startH * 60 + startM;
+            let endMinutes = endH * 60 + endM;
+            
+            if (endMinutes < startMinutes) {
+                endMinutes += 24 * 60;
+            }
+            
+            const diffMinutes = endMinutes - startMinutes;
+            return Math.round((diffMinutes / 60) * 100) / 100;
+        };
+
         setOvertimeState(prev => {
             const newList = prev.overtimeList.map(row => {
                 if (row.id !== id) return row;
@@ -573,6 +634,11 @@ function App() {
                     
                     const formatTime = (h) => `${String(h).padStart(2, '0')}:00`;
                     updatedRow.timeRange = `${formatTime(startHour)} - ${formatTime(startHour + displayHours)}`;
+                } else if (field === 'timeRange') {
+                    const parsedHours = parseHoursFromTimeRange(value);
+                    if (parsedHours !== null && !isNaN(parsedHours) && parsedHours >= 0 && parsedHours <= 24) {
+                        updatedRow.overtimeHours = parsedHours;
+                    }
                 }
                 
                 return updatedRow;
@@ -926,6 +992,7 @@ function App() {
                                 signatureEmployeeUrl={globalLogos.signatureEmployee}
                                 personnel={personnelState}
                                 onRowChange={handleOvertimeRowChange}
+                                onPersonnelChange={handlePersonnelFieldChange}
                                 onGlobalDescriptionChange={(val) => {
                                     setOvertimeState(prev => {
                                         const updatedList = prev.overtimeList.map(row => ({

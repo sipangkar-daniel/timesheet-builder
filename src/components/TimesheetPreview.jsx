@@ -28,6 +28,11 @@ export const TimesheetPreview = ({
 
   const [manuallyEditingDays, setManuallyEditingDays] = useState({});
 
+  // Reset manually editing days state when month or year changes
+  useEffect(() => {
+    setManuallyEditingDays({});
+  }, [state.year, state.month]);
+
   const [selectedIndices, setSelectedIndices] = useState([]);
   const [isSelecting, setIsSelecting] = useState(false);
   const [dragStartIdx, setDragStartIdx] = useState(null);
@@ -317,7 +322,21 @@ export const TimesheetPreview = ({
     const isSpecial = weekendDays.includes(key) || 
                       (holidayDays.includes(key) && !workedHolidayDays.includes(key)) || 
                       leaveDays.includes(key);
-    return isSpecial ? 0 : hourOfDefaultActivities;
+    if (isSpecial) {
+      return 0;
+    }
+
+    if (isAutoGenerate) {
+      const dayHasTicket = tickets.some(ticket => {
+        const ticketKey = ticket.id || ticket.ticketNumber;
+        return autoHours[ticketKey] && autoHours[ticketKey][day] > 0;
+      });
+      if (!dayHasTicket) {
+        return weekdayHour;
+      }
+    }
+
+    return hourOfDefaultActivities;
   };
 
   // Calculate sum of hours for default row

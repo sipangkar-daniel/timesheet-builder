@@ -10,6 +10,7 @@ export const OvertimePreview = ({
   signatureEmployeeUrl,
   personnel,
   onRowChange,
+  onPersonnelChange,
   onGlobalDescriptionChange
 }) => {
   const [zoom, setZoom] = useState(1.0);
@@ -102,30 +103,68 @@ export const OvertimePreview = ({
                       {isFirst && (
                         <td 
                           rowSpan={totalDays} 
-                          className="border border-black p-2 font-bold align-middle bg-white break-words"
+                          className="border border-black p-1 font-bold align-middle bg-white break-words relative"
                         >
-                          {employeeName || PLACEHOLDERS.EMPLOYEE_NAME}
+                          <textarea
+                            value={employeeName}
+                            onChange={e => onPersonnelChange?.('employeeName', e.target.value)}
+                            placeholder={PLACEHOLDERS.EMPLOYEE_NAME}
+                            rows={3}
+                            className="excel-cell-input focus:bg-yellow-50 pdf-hide-input w-full font-bold text-center resize-none"
+                            style={{ border: 'none', background: 'transparent', outline: 'none', padding: '2px', color: '#000', fontSize: '11px', lineHeight: '1.2', display: 'block' }}
+                          />
+                          <span className="pdf-value-overlay" style={{ justifyContent: 'center', alignItems: 'center', fontSize: '11px', fontWeight: 700, whiteSpace: 'pre-wrap', textAlign: 'center' }}>
+                            {employeeName || PLACEHOLDERS.EMPLOYEE_NAME}
+                          </span>
                         </td>
                       )}
                       
                       {/* Hari / Tanggal */}
-                      <td className="border border-black p-2 font-medium">
-                        {formatIndonesianDate(row.overtimeDate, true)}
+                      <td className="border border-black p-1 font-medium relative">
+                        <input
+                          type="text"
+                          value={row.dateText || formatIndonesianDate(row.overtimeDate, true)}
+                          onChange={e => onRowChange?.(row.id, 'dateText', e.target.value)}
+                          className="excel-cell-input focus:bg-yellow-50 pdf-hide-input w-full text-center"
+                          style={{ border: 'none', background: 'transparent', outline: 'none', padding: '2px', color: '#000', fontSize: '11px', display: 'block' }}
+                        />
+                        <span className="pdf-value-overlay" style={{ justifyContent: 'center', alignItems: 'center', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                          {row.dateText || formatIndonesianDate(row.overtimeDate, true)}
+                        </span>
                       </td>
                       
                       {/* Vertically Merged Unit Kerja cell */}
                       {isFirst && (
                         <td 
                           rowSpan={totalDays} 
-                          className="border border-black p-2 align-middle bg-white break-words"
+                          className="border border-black p-1 align-middle bg-white break-words relative"
                         >
-                          {unitKerja}
+                          <textarea
+                            value={departmentName}
+                            onChange={e => onPersonnelChange?.('departmentName', e.target.value)}
+                            placeholder={PLACEHOLDERS.DEPARTMENT_NAME}
+                            rows={3}
+                            className="excel-cell-input focus:bg-yellow-50 pdf-hide-input w-full text-center resize-none"
+                            style={{ border: 'none', background: 'transparent', outline: 'none', padding: '2px', color: '#000', fontSize: '11px', lineHeight: '1.2', display: 'block' }}
+                          />
+                          <span className="pdf-value-overlay" style={{ justifyContent: 'center', alignItems: 'center', fontSize: '11px', whiteSpace: 'pre-wrap', textAlign: 'center' }}>
+                            {unitKerja}
+                          </span>
                         </td>
                       )}
                       
                       {/* Waktu Lembur */}
-                      <td className="border border-black p-2 font-medium">
-                        {row.timeRange}
+                      <td className="border border-black p-1 font-medium relative">
+                        <input
+                          type="text"
+                          value={row.timeRange}
+                          onChange={e => onRowChange?.(row.id, 'timeRange', e.target.value)}
+                          className="excel-cell-input focus:bg-yellow-50 pdf-hide-input w-full text-center"
+                          style={{ border: 'none', background: 'transparent', outline: 'none', padding: '2px', color: '#000', fontSize: '11px', display: 'block' }}
+                        />
+                        <span className="pdf-value-overlay" style={{ justifyContent: 'center', alignItems: 'center', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                          {row.timeRange}
+                        </span>
                       </td>
                       
                       {/* Pekerjaan yang harus dikerjakan (auto wraps text) */}
@@ -147,8 +186,19 @@ export const OvertimePreview = ({
                       </td>
                       
                       {/* Total Lembur (Jam) */}
-                      <td className="border border-black p-2 font-bold">
-                        {row.overtimeHours}
+                      <td className="border border-black p-1 font-bold relative">
+                        <input
+                          type="number"
+                          min="0"
+                          max="24"
+                          value={row.overtimeHours}
+                          onChange={e => onRowChange?.(row.id, 'overtimeHours', e.target.value === '' ? 0 : Number(e.target.value))}
+                          className="excel-cell-input focus:bg-yellow-50 pdf-hide-input w-full text-center font-bold"
+                          style={{ border: 'none', background: 'transparent', outline: 'none', padding: '2px', color: '#000', fontSize: '11px', display: 'block' }}
+                        />
+                        <span className="pdf-value-overlay" style={{ justifyContent: 'center', alignItems: 'center', fontSize: '11px', fontWeight: 700 }}>
+                          {row.overtimeHours}
+                        </span>
                       </td>
                     </tr>
                   );

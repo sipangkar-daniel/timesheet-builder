@@ -40,9 +40,9 @@ export const BasicInfoForm = ({ personnel, setPersonnel }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
-            DepartmentName (Unit Kerja)
+            Department Name (Unit Kerja)
           </label>
-          <input 
+          <input
             type="text" 
             value={personnel.departmentName || ''}
             placeholder={PLACEHOLDERS.DEPARTMENT_NAME}
