@@ -23,7 +23,7 @@ export const OvertimeForm = ({
         </h3>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
             Form Title
           </label>
           <input 
@@ -35,7 +35,7 @@ export const OvertimeForm = ({
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
             Mandiri Form Description / Opening Statement
           </label>
           <textarea 
@@ -65,7 +65,7 @@ export const OvertimeForm = ({
           {/* Job Description Input (Only visible when toggle is ON) */}
           {state.isDescriptionSame && (
             <div className="space-y-1 animate-fade-in">
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400">
+              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-300">
                 Default Job Description
               </label>
               <textarea 

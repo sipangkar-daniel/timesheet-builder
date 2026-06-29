@@ -7,11 +7,46 @@ import {OvertimeForm} from './components/OvertimeForm';
 import {OvertimePreview} from './components/OvertimePreview';
 import {getWeekendsInMonth, getMonthNameId, getDaysInMonth, isWeekendDay} from './utils/dateHelpers';
 import {exportToPdf} from './utils/pdfExporter';
-import {Calendar, FileText, Sparkles, Loader2, CheckCircle2, ChevronDown, Upload, UserCheck} from 'lucide-react';
+import {Calendar, FileText, Sparkles, Loader2, CheckCircle2, ChevronDown, Upload, UserCheck, Sun, Moon} from 'lucide-react';
 import defaultSignature from './assets/images/default-signature.png';
 import {PLACEHOLDERS, TEXTS} from './utils/constants';
 
 function App() {
+    // Theme Mode state
+    const [darkMode, setDarkMode] = useState(() => {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            return savedTheme === 'dark';
+        }
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    });
+
+    useEffect(() => {
+        if (darkMode) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, [darkMode]);
+
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('theme');
+        if (!savedTheme) {
+            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            const handleChange = (e) => {
+                setDarkMode(e.matches);
+            };
+            mediaQuery.addEventListener('change', handleChange);
+            return () => mediaQuery.removeEventListener('change', handleChange);
+        }
+    }, []);
+
+    const toggleDarkMode = () => {
+        const newMode = !darkMode;
+        setDarkMode(newMode);
+        localStorage.setItem('theme', newMode ? 'dark' : 'light');
+    };
+
     // Accordion open/close states
     const [isBasicInfoOpen, setIsBasicInfoOpen] = useState(true);
     const [isUploadTicketOpen, setIsUploadTicketOpen] = useState(false);
@@ -610,10 +645,10 @@ function App() {
 
     return (
         <div
-            className={`min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/40 text-gray-800 transition-colors duration-300 font-sans flex flex-col ${isDragging ? 'select-none' : ''}`}>
+            className={`min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/40 dark:from-slate-950 dark:to-slate-900 text-gray-800 dark:text-gray-100 transition-colors duration-300 font-sans flex flex-col ${isDragging ? 'select-none' : ''}`}>
 
             {/* NAVBAR */}
-            <header className="sticky top-0 z-40 glass-panel border-b border-gray-200/50 no-print">
+            <header className="sticky top-0 z-40 glass-panel border-b border-gray-200/50 dark:border-gray-800/50 no-print">
                 <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
 
                     {/* Logo Title */}
@@ -623,11 +658,27 @@ function App() {
                             <Sparkles className="w-5 h-5 animate-pulse"/>
                         </div>
                         <div>
-                            <h1 className="text-sm font-bold leading-tight tracking-wide text-mandiri-blue">
+                            <h1 className="text-sm font-bold leading-tight tracking-wide text-mandiri-blue dark:text-mandiri-yellow">
                                 Timesheet & Overtime Builder
                             </h1>
                         </div>
                     </div>
+
+                    {/* Theme Toggle Button */}
+                    <button
+                        onClick={toggleDarkMode}
+                        className="p-2 rounded-xl bg-slate-100/80 hover:bg-slate-200/80 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-gray-700 dark:text-gray-300 transition-all shadow-sm hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center gap-2 border border-slate-200/30 dark:border-slate-700/30"
+                        title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                    >
+                        {darkMode ? (
+                            <Sun className="w-4 h-4 text-amber-500 transition-transform duration-500 hover:rotate-90" />
+                        ) : (
+                            <Moon className="w-4 h-4 text-indigo-450 transition-transform duration-500 hover:-rotate-12" />
+                        )}
+                        <span className="text-xs font-semibold hidden sm:inline">
+                            {darkMode ? "Dark Mode" : "Light Mode"}
+                        </span>
+                    </button>
                 </div>
             </header>
 
@@ -647,7 +698,7 @@ function App() {
                         className="glass-panel rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800/80 overflow-hidden">
                         <button
                             onClick={() => setIsBasicInfoOpen(!isBasicInfoOpen)}
-                            className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 transition-colors text-left"
+                            className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 dark:bg-slate-900/40 dark:hover:bg-slate-850/40 transition-colors text-left"
                         >
                             <div className="flex items-center gap-2">
                                 <UserCheck className="w-5 h-5"/>
@@ -672,7 +723,7 @@ function App() {
                         className="glass-panel rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800/80 overflow-hidden">
                         <button
                             onClick={() => setIsUploadTicketOpen(!isUploadTicketOpen)}
-                            className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 transition-colors text-left"
+                            className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 dark:bg-slate-900/40 dark:hover:bg-slate-850/40 transition-colors text-left"
                         >
                             <div className="flex items-center gap-2">
                                 <Upload className="w-5 h-5"/>
@@ -712,7 +763,7 @@ function App() {
                         className="glass-panel rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800/80 overflow-hidden">
                         <button
                             onClick={() => setIsDateRulesOpen(!isDateRulesOpen)}
-                            className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 transition-colors text-left"
+                            className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 dark:bg-slate-900/40 dark:hover:bg-slate-850/40 transition-colors text-left"
                         >
                             <div className="flex items-center gap-2">
                                 <Calendar className="w-5 h-5"/>
@@ -737,7 +788,7 @@ function App() {
                         className="glass-panel rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800/80 overflow-hidden">
                         <button
                             onClick={() => setIsOvertimeFormOpen(!isOvertimeFormOpen)}
-                            className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 transition-colors text-left"
+                            className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 dark:bg-slate-900/40 dark:hover:bg-slate-850/40 transition-colors text-left"
                         >
                             <div className="flex items-center gap-2">
                                 <FileText className="w-5 h-5"/>
@@ -762,7 +813,7 @@ function App() {
                         className="glass-panel rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800/80 overflow-hidden">
                         <button
                             onClick={() => setIsAssetsFormOpen(!isAssetsFormOpen)}
-                            className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 transition-colors text-left"
+                            className="w-full flex justify-between items-center p-4 font-bold text-mandiri-blue dark:text-gray-200 border-b border-gray-150 dark:border-gray-800 bg-slate-50/50 hover:bg-slate-100/50 dark:bg-slate-900/40 dark:hover:bg-slate-850/40 transition-colors text-left"
                         >
                             <div className="flex items-center gap-2">
                                 <Upload className="w-5 h-5"/>
@@ -778,7 +829,7 @@ function App() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label
-                                            className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                                            className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
                                             Company Logo (Override)
                                         </label>
                                         <input
@@ -790,7 +841,7 @@ function App() {
                                     </div>
                                     <div>
                                         <label
-                                            className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                                            className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
                                             Vendor Logo (Override)
                                         </label>
                                         <input
@@ -805,7 +856,7 @@ function App() {
                                 {/* Employee Signature File Upload */}
                                 <div className="pt-2 border-t border-gray-100 dark:border-gray-800/80">
                                     <label
-                                        className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                                        className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
                                         Employee Signature Image
                                     </label>
                                     <input
@@ -902,13 +953,13 @@ function App() {
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md transition-all duration-300">
                     <div
-                        className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 text-center animate-fade-in">
+                        className="bg-white dark:bg-slate-900 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 dark:border-slate-800 text-center animate-fade-in">
                         <div
-                            className="w-16 h-16 rounded-full bg-mandiri-blue/10 flex items-center justify-center text-mandiri-blue mb-4">
+                            className="w-16 h-16 rounded-full bg-mandiri-blue/10 dark:bg-slate-800 flex items-center justify-center text-mandiri-blue dark:text-mandiri-yellow mb-4">
                             <Loader2 className="w-8 h-8 animate-spin"/>
                         </div>
-                        <h3 className="text-lg font-bold text-gray-800 mb-1">Generating Compliance PDF</h3>
-                        <p className="text-xs text-gray-500 max-w-xs leading-relaxed">
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-1">Generating Compliance PDF</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs leading-relaxed">
                             We are compiling the document and scaling the Excel layouts. Please do not close the tab or
                             reload.
                         </p>
@@ -920,29 +971,29 @@ function App() {
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-all duration-300">
                     <div
-                        className="bg-white rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 text-center animate-fade-in">
+                        className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 dark:border-slate-800 text-center animate-fade-in">
                         <div
-                            className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mb-4 shadow-inner">
+                            className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-4 shadow-inner">
                             <CheckCircle2 className="w-9 h-9"/>
                         </div>
-                        <h3 className="text-lg font-extrabold text-gray-900 mb-1">PDF Export Complete</h3>
-                        <p className="text-xs text-gray-500 mb-4 max-w-xs leading-normal">
+                        <h3 className="text-lg font-extrabold text-gray-900 dark:text-gray-100 mb-1">PDF Export Complete</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 max-w-xs leading-normal">
                             Your file has been generated successfully.
                         </p>
 
                         <div
-                            className="w-full bg-slate-50 border border-slate-150 rounded-xl p-3 mb-5 text-left font-mono">
+                            className="w-full bg-slate-50 dark:bg-slate-950/50 border border-slate-150 dark:border-slate-800/80 rounded-xl p-3 mb-5 text-left font-mono">
                             <div
-                                className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Filename
+                                className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider mb-0.5">Filename
                             </div>
-                            <div className="text-xs font-semibold text-mandiri-blue truncate" title={exportedFilename}>
+                            <div className="text-xs font-semibold text-mandiri-blue dark:text-mandiri-yellow truncate" title={exportedFilename}>
                                 {exportedFilename}
                             </div>
                         </div>
 
                         <button
                             onClick={() => setShowSuccessModal(false)}
-                            className="w-full py-2.5 bg-mandiri-blue hover:bg-mandiri-blue/90 text-white rounded-xl text-xs font-bold transition-all shadow-md"
+                            className="w-full py-2.5 bg-mandiri-blue hover:bg-mandiri-blue/90 dark:bg-mandiri-yellow dark:text-gray-900 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
                         >
                             Okay, got it!
                         </button>
@@ -954,28 +1005,28 @@ function App() {
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-all duration-300">
                     <div
-                        className="bg-white rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 text-center animate-fade-in">
+                        className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 dark:border-slate-800 text-center animate-fade-in">
                         <div
-                            className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mb-4 shadow-inner">
+                            className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-4 shadow-inner">
                             <CheckCircle2 className="w-9 h-9"/>
                         </div>
-                        <h3 className="text-lg font-extrabold text-gray-900 mb-1">Import Successful</h3>
-                        <p className="text-xs text-gray-500 mb-4 max-w-xs leading-normal">
+                        <h3 className="text-lg font-extrabold text-gray-900 dark:text-gray-100 mb-1">Import Successful</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 max-w-xs leading-normal">
                             Successfully parsed and loaded JIRA tickets.
                         </p>
 
-                        <div className="w-full bg-slate-50 border border-slate-150 rounded-xl p-3 mb-5 text-left">
-                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Tickets
+                        <div className="w-full bg-slate-50 dark:bg-slate-950/50 border border-slate-150 dark:border-slate-800/80 rounded-xl p-3 mb-5 text-left">
+                            <div className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider mb-0.5">Tickets
                                 Loaded
                             </div>
-                            <div className="text-sm font-extrabold text-mandiri-blue">
+                            <div className="text-sm font-extrabold text-mandiri-blue dark:text-mandiri-yellow">
                                 {importSuccessCount} Issues
                             </div>
                         </div>
 
                         <button
                             onClick={() => setShowImportSuccess(false)}
-                            className="w-full py-2.5 bg-mandiri-blue hover:bg-mandiri-blue/90 text-white rounded-xl text-xs font-bold transition-all shadow-md"
+                            className="w-full py-2.5 bg-mandiri-blue hover:bg-mandiri-blue/90 dark:bg-mandiri-yellow dark:text-gray-900 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
                         >
                             Close
                         </button>
@@ -992,30 +1043,30 @@ function App() {
                     <div
                         className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-all duration-300">
                         <div
-                            className="bg-white rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 text-center animate-fade-in">
+                            className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center border border-slate-100 dark:border-slate-800 text-center animate-fade-in">
                             <div
-                                className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center text-red-600 mb-4 shadow-inner">
+                                className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/40 flex items-center justify-center text-red-600 dark:text-red-450 mb-4 shadow-inner">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2}
                                      stroke="currentColor" className="w-8 h-8">
                                     <path strokeLinecap="round" strokeLinejoin="round"
                                           d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
                                 </svg>
                             </div>
-                            <h3 className="text-lg font-extrabold text-red-600 mb-1">Jira Import Failed</h3>
-                            <p className="text-xs text-gray-500 mb-4 max-w-xs leading-normal">
+                            <h3 className="text-lg font-extrabold text-red-650 dark:text-red-400 mb-1">Jira Import Failed</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 max-w-xs leading-normal">
                                 An error occurred during file parsing.
                             </p>
 
                             <div
-                                className="w-full bg-red-50/55 border border-red-100 rounded-xl p-3 mb-5 text-left font-sans">
-                                <div className="text-[10px] text-red-500 font-bold uppercase tracking-wider mb-0.5">Error
+                                className="w-full bg-red-50/55 dark:bg-red-950/20 border border-red-100 dark:border-red-900/40 rounded-xl p-3 mb-5 text-left font-sans">
+                                <div className="text-[10px] text-red-500 dark:text-red-455 font-bold uppercase tracking-wider mb-0.5">Error
                                     Message
                                 </div>
-                                <div className="text-xs font-semibold text-red-700 leading-normal" style={{ whiteSpace: 'pre-wrap' }}>
+                                <div className="text-xs font-semibold text-red-700 dark:text-red-300 leading-normal" style={{ whiteSpace: 'pre-wrap' }}>
                                     {textMsg}
                                 </div>
                                 {codeExample && (
-                                    <div className="relative border border-red-100/60 rounded-lg overflow-hidden bg-slate-900 text-slate-100 font-mono text-[10px] p-2.5 mt-2.5 shadow-inner">
+                                    <div className="relative border border-red-100/60 dark:border-red-900/30 rounded-lg overflow-hidden bg-slate-900 dark:bg-slate-950 text-slate-100 dark:text-slate-300 font-mono text-[10px] p-2.5 mt-2.5 shadow-inner">
                                         <div className="flex justify-between items-center mb-1 text-[8px] text-slate-400 select-none">
                                             <span>JSON TEMPLATE</span>
                                             <button
@@ -1028,7 +1079,7 @@ function App() {
                                                         btn.textContent = "Copy";
                                                     }, 2000);
                                                 }}
-                                                className="text-cyan-400 hover:text-cyan-300 font-bold uppercase tracking-wider hover:underline focus:outline-none"
+                                                className="text-cyan-400 hover:text-cyan-300 font-bold uppercase tracking-wider hover:underline focus:outline-none cursor-pointer"
                                             >
                                                 Copy
                                             </button>
@@ -1040,7 +1091,7 @@ function App() {
 
                             <button
                                 onClick={() => setShowImportError(false)}
-                                className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-md"
+                                className="w-full py-2.5 bg-red-600 hover:bg-red-700 dark:bg-red-650 dark:hover:bg-red-750 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
                             >
                                 Close
                             </button>

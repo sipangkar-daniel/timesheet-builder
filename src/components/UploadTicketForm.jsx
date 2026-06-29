@@ -156,7 +156,7 @@ export const UploadTicketForm = ({
           <div className="pt-4 border-t border-gray-150/60 dark:border-gray-800/80 space-y-4 animate-fade-in">
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="md:col-span-4">
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
                   Default Activity Description (used for first ticket only)
                 </label>
                 <textarea
@@ -169,7 +169,7 @@ export const UploadTicketForm = ({
               </div>
 
               <div className="md:col-span-1">
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
                   Hours
                 </label>
                 <input
@@ -205,7 +205,7 @@ export const UploadTicketForm = ({
             {isAutoGenerate && (
               <div className="grid grid-cols-2 gap-4 pt-2 animate-fade-in">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
                     Weekday Hour
                   </label>
                   <input 
@@ -218,7 +218,7 @@ export const UploadTicketForm = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
                     Weekend Hour
                   </label>
                   <input 

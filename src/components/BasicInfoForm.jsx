@@ -12,7 +12,7 @@ export const BasicInfoForm = ({ personnel, setPersonnel }) => {
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
             Employee Name
           </label>
           <input 
@@ -24,7 +24,7 @@ export const BasicInfoForm = ({ personnel, setPersonnel }) => {
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
             Role
           </label>
           <input 
@@ -39,7 +39,7 @@ export const BasicInfoForm = ({ personnel, setPersonnel }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
             DepartmentName (Unit Kerja)
           </label>
           <input 
@@ -51,7 +51,7 @@ export const BasicInfoForm = ({ personnel, setPersonnel }) => {
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
             Department Head
           </label>
           <input 
@@ -66,7 +66,7 @@ export const BasicInfoForm = ({ personnel, setPersonnel }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
             Supervisor Name
           </label>
           <input 
@@ -78,7 +78,7 @@ export const BasicInfoForm = ({ personnel, setPersonnel }) => {
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">
             Supervisor Role / Jabatan
           </label>
           <input 

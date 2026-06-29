@@ -25,6 +25,12 @@ export const exportToPdf = (elementId, options = {}) => {
   // Inject a PDF render class to apply clean black borders and hide interactive forms
   element.classList.add('pdf-render-mode');
 
+  // Temporarily disable dark mode on root element to ensure PDF renders in pure light mode
+  const isDark = document.documentElement.classList.contains('dark');
+  if (isDark) {
+    document.documentElement.classList.remove('dark');
+  }
+
   // html2pdf options configuration
   const opt = {
     margin: options.margin !== undefined ? options.margin : 6,
@@ -53,10 +59,16 @@ export const exportToPdf = (elementId, options = {}) => {
       // Restore default interactive styles
       element.classList.remove('pdf-render-mode');
       element.style.zoom = originalZoom;
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      }
     })
     .catch((err) => {
       element.classList.remove('pdf-render-mode');
       element.style.zoom = originalZoom;
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      }
       console.error("html2pdf processing failed: ", err);
       throw err;
     });
