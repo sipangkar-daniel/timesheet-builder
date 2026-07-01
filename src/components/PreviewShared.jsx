@@ -103,8 +103,12 @@ export const SignatureBox = ({ title, name, role, signatureUrl }) => {
     <div className="flex flex-col items-center text-center">
       <span className="mb-1">{title}</span>
       {signatureUrl ? (
-        <div className="h-16 my-2 flex items-center justify-center">
-          <img src={signatureUrl} alt={title} className="max-h-12 object-contain" />
+        <div className="h-16 my-2 flex items-center justify-center overflow-hidden">
+          <img
+            src={signatureUrl}
+            alt={title}
+            style={{ maxHeight: '48px', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block' }}
+          />
         </div>
       ) : (
         <>

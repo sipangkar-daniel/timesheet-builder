@@ -13,7 +13,7 @@ export const MONTHS = [
   { value: 7, nameId: 'Juli', nameEn: 'July' },
   { value: 8, nameId: 'Agustus', nameEn: 'August' },
   { value: 9, nameId: 'September', nameEn: 'September' },
-  { value: 10, nameId: 'Oktobers', nameEn: 'October' }, // or Oktober
+  { value: 10, nameId: 'Oktober', nameEn: 'October' },
   { value: 11, nameId: 'November', nameEn: 'November' },
   { value: 12, nameId: 'Desember', nameEn: 'December' }
 ];
@@ -101,7 +101,7 @@ export const formatDateString = (date) => {
 export const formatIndonesianDate = (dateStr, includeDayName = true) => {
   if (!dateStr) return '';
   const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return dateStr;
+  if (Number.isNaN(date.getTime())) return dateStr;
 
   const daysId = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   const monthsId = [

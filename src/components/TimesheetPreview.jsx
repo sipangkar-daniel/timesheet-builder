@@ -435,7 +435,11 @@ export const TimesheetPreview = ({
               <div className="sheet-cell bg-white" style={{ minHeight: '34px', padding: '4px' }}>
                 <div className="flex items-center justify-center min-h-[30px]">
                   {signatureEmployeeUrl ? (
-                    <img src={signatureEmployeeUrl} alt="Employee Signature" className="max-h-6 object-contain" />
+                    <img
+                      src={signatureEmployeeUrl}
+                      alt="Employee Signature"
+                      style={{ maxHeight: '24px', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block' }}
+                    />
                   ) : null}
                 </div>
               </div>
@@ -545,9 +549,16 @@ export const TimesheetPreview = ({
                   })),
                 ];
 
+                // First visible row index – the spanning special-day cell must be
+                // anchored here, not hard-coded to index 0, so it still renders
+                // even when the default row is merged/hidden.
+                const firstVisibleIndex = allRows.findIndex((_, i) => !isRowHidden(i));
+                // Count of visible rows (for the spanning cell rowSpan)
+                const visibleRowCount = allRows.filter((_, i) => !isRowHidden(i)).length;
+
                 return allRows.map((row, index) => {
                   const rowIdx = GR_DEF + index; // row 3 for index 0, row 4 for index 1, …
-                  const isFirstRow = index === 0;
+                  const isFirstVisibleRow = index === firstVisibleIndex;
 
                   // Skip rendering if this row is merged and hidden
                   if (isRowHidden(index)) return null;
@@ -660,16 +671,18 @@ export const TimesheetPreview = ({
                         const bg        = getDayBg(day);
 
                         if (isSpecial) {
-                          // Only the first row renders the spanning special-day cell.
-                          // Subsequent rows omit it – the span from row 0 covers them.
-                          if (!isFirstRow) return null;
+                          // Only the first VISIBLE row renders the spanning special-day
+                          // cell. Subsequent visible rows omit it so the span covers them.
+                          // Using firstVisibleIndex (not hard-coded 0) ensures this still
+                          // works when the default row is merged/hidden.
+                          if (!isFirstVisibleRow) return null;
 
                           const label = getVerticalTextForDay(day);
                           return (
                             <div
                               key={`special-${day}`}
                               className="sheet-cell"
-                              style={{ ...cellPos(gcDay(day), GR_DEF, { rowSpan: totalContentRows }), flexDirection: 'column', ...(bg ? { backgroundColor: bg } : {}) }}
+                              style={{ ...cellPos(gcDay(day), GR_DEF + firstVisibleIndex, { rowSpan: visibleRowCount }), flexDirection: 'column', ...(bg ? { backgroundColor: bg } : {}) }}
                             >
                               {label.split('').map((char, idx) => (
                                 <span key={idx} style={{ display: 'block', fontSize: '8px', fontWeight: 700, color: '#1e293b', lineHeight: '1.35' }}>

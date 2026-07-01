@@ -198,6 +198,10 @@
   background-color: white;
 }
 
+.dark .pop-radio-label:has(.pop-radio-input:checked) {
+  background-color: #1e293b; /* dark slate-800 */
+}
+
 /* Keyframe animations */
 @keyframes pop-dot {
   0% { transform: scale(0); }
@@ -359,4 +363,77 @@
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #475569;
 }
+
+/* Avoid splitting table rows and signature boxes across PDF pages */
+.excel-table tr {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+
+.avoid-page-break {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+
+/* Compress Overtime PDF layout to guarantee it fits on exactly 1 page */
+.pdf-render-mode#overtime-pdf-area {
+  padding: 12px 20px !important;
+}
+
+.pdf-render-mode#overtime-pdf-area .mb-6 {
+  margin-bottom: 8px !important;
+}
+
+.pdf-render-mode#overtime-pdf-area .mb-4 {
+  margin-bottom: 6px !important;
+  font-size: 10px !important;
+  line-height: 1.35 !important;
+}
+
+.pdf-render-mode#overtime-pdf-area .excel-table {
+  font-size: 9.5px !important;
+  margin-bottom: 8px !important;
+}
+
+.pdf-render-mode#overtime-pdf-area .excel-table th {
+  padding: 4px !important;
+  font-size: 10px !important;
+}
+
+.pdf-render-mode#overtime-pdf-area .excel-table td {
+  padding: 2px !important;
+}
+
+.pdf-render-mode#overtime-pdf-area .pdf-value-overlay {
+  font-size: 9.5px !important;
+}
+
+.pdf-render-mode#overtime-pdf-area td span.pdf-value-overlay {
+  font-size: 9.5px !important;
+}
+
+.pdf-render-mode#overtime-pdf-area .mt-12 {
+  margin-top: 8px !important;
+}
+
+.pdf-render-mode#overtime-pdf-area .avoid-page-break {
+  margin-top: 8px !important;
+}
+
+/* Make signatures compact in PDF render mode */
+.pdf-render-mode .h-16 {
+  height: 36px !important;
+  margin-top: 2px !important;
+  margin-bottom: 2px !important;
+}
+
+.pdf-render-mode .h-16 img {
+  max-height: 32px !important;
+}
+
+.pdf-render-mode#overtime-pdf-area .text-xs {
+  font-size: 10px !important;
+}
+
+
 

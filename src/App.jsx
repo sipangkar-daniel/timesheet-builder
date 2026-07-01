@@ -338,27 +338,33 @@ function App() {
                 }
 
                 if (isWeekend) {
-                    qualifying.push({
-                        date: dateKey,
-                        hours: daySum,
-                        isWeekend: true,
-                        isWeekday: false,
-                        isHoliday: false
-                    });
-                } else if (isWorkedHoliday) {
-                    qualifying.push({
-                        date: dateKey,
-                        hours: daySum,
-                        isWeekend: false,
-                        isWeekday: false,
-                        isHoliday: true
-                    });
-                } else {
-                    // Regular Work Day (Weekday)
-                    if (daySum > 8) {
+                    if (daySum >= 4) {
                         qualifying.push({
                             date: dateKey,
-                            hours: daySum + 1 - 8,
+                            hours: daySum,
+                            isWeekend: true,
+                            isWeekday: false,
+                            isHoliday: false
+                        });
+                    }
+                } else if (isWorkedHoliday) {
+                    if (daySum >= 4) {
+                        qualifying.push({
+                            date: dateKey,
+                            hours: daySum,
+                            isWeekend: false,
+                            isWeekday: false,
+                            isHoliday: true
+                        });
+                    }
+                } else {
+                    // Regular Work Day (Weekday)
+                    // Overtime is only qualified if overtime hours (daySum - 8) is at least 4 hours
+                    const otHours = daySum - 8;
+                    if (otHours >= 4) {
+                        qualifying.push({
+                            date: dateKey,
+                            hours: otHours,
                             isWeekend: false,
                             isWeekday: true,
                             isHoliday: false

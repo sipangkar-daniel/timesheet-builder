@@ -217,7 +217,7 @@ export const OvertimePreview = ({
           </table>
 
           {/* Footer & Signature Section */}
-          <div className="grid grid-cols-2 gap-4 mt-12 text-xs">
+          <div className="grid grid-cols-2 gap-4 mt-12 text-xs avoid-page-break">
             <SignatureBox 
               title={TEXTS.PEMOHON}
               name={employeeName || PLACEHOLDERS.EMPLOYEE_NAME}

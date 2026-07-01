@@ -47,6 +47,9 @@ export const exportToPdf = (elementId, options = {}) => {
       format: 'a4', 
       orientation: options.orientation || 'portrait',
       compress: true
+    },
+    pagebreak: { 
+      mode: ['css', 'legacy']
     }
   };
 
